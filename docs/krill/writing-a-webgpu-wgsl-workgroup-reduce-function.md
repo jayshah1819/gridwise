@@ -21,33 +21,35 @@ These limitations lead to a choice between two library design patterns: a few co
 
 ---
 
-## Scenario: `reduceWorkgroup`
+## Scenario: A reduceWorkgroup Function
 
 We will focus on creating a `reduceWorkgroup` function that will be incorporated into a primitive library. We expect external users will face a need to input a linear array of data and have each workgroup compute the sum of a sub-section of that data. Our implementation, as part of a library, will allow them to do so without concern for how the reduction is implemented.
 
-The semantics of the function are as follows: consider a workgroup of N invocations (e.g., N = 128); workgroup W will compute the sum of `input[W * N : W * (N+1)]`, and each invocation in the workgroup will receive this sum as the return value of a function call.
+The semantics of the function are as follows: consider a workgroup of N invocations (e.g., N = 128); workgroup W will compute the sum of `input[W*N:W*(N+1))`, and each invocation in the workgroup will receive this sum as the return value of a function call.
 
 ### Desired Function Call: Caller (WGSL Definition)
 
-Ideally, making the function call from within a WGSL kernel would be simple:
+Ideally, making the function call from within a WGSL kernel would be simple, with the minimal call looking something like
 
 ```wgsl
+...
 val = reduceWorkgroup(ptr);
+...
 ```
 
-Here we assume that `ptr` is a linear address pointing to an item within the input, and that the private variable `val` and the deferenced value at `ptr` have the same datatype. If the workgroup has `W` invocations, then `val`, for every invocation in workgroup `W`, will assume the value `reduce(ptr[w*N:w*(N+1)))`.
+Here we assume that `ptr` is an address pointing to an item within a linear input array, and that the private variable `val` and the deferenced value at `ptr` have the same datatype. If the workgroup has `W` invocations, then `val`, for every invocation in workgroup `W`, will assume the value `reduce(ptr[W*N:W*(N+1)))`.
 
 This interface does not specify the reduction operation (for instance, addition, max, or min), nor the datatype. Possible options to address the former include:
 
 - A separate reduction function for each operation (`reduceAddWorkgroup`, `reduceMinWorkgroup`, etc.)
-- A default of `add` or another operation
-- Separately defining an operation (a "binop" == a monoid) that must be explicitly set by the caller
+- A default operation (e.g., `add`)
+- Separately defining an operation (a "binop" == a monoid) that must be explicitly set by the caller and implicitly used by the function
 
 However, we do not further discuss this issue in this document.
 
 ### Desired Function Call: Callee
 
-We would also like the callee function/kernel to be as simple as possible. The minimum kernel that calls our function would look something like this:
+We would also like the callee function/kernel to be as simple as possible. The minimum kernel that calls our function, and places the output into an output array, would look something like this:
 
 ```wgsl
 @compute @workgroup_size(128) fn reduceKernel(
@@ -70,15 +72,15 @@ The above kernel has 5 lines of code. 2 of them are declaring built-ins. WGSL re
 Possible ways to remove the need for these declarations include
 
 - Making a builtin variable available within kernels (e.g., CUDA's `threadIdx`)
-- Making a function call that retrieves a builtin variable available within kernels (e.g., Sycl's `get_id()`)
+- Making a function call that retrieves a builtin variable available within kernels (e.g., SYCL's `get_id()`)
 
 #### Some 3D builtins lack a 1D variant
 
 The use of `wgid` above reflects a common implementation pattern: we logically have a 1D data space (`in`, `out`) and thus want our workgroups to also be organized as a 1D data space. However, the only access we have to the workgroup id is through a 3D builtin. Above, we just assume that such a builtin only uses the `.x` part of the `workgroup_id` builtin, but this assumption is checked nowhere.
 
-It would be useful to have a 1D builtin equivalent for every 3D builtin (specifically, `workgroup_index` and `global_invocation_index`).
+It would be convenient to have a 1D builtin equivalent for every 3D builtin (specifically, WGSL lacks `workgroup_index` and `global_invocation_index`).
 
-### Implementing `reduceWorkgroup`
+### Implementing reduceWorkgroup
 
 Now let's turn to actually implementing the `reduceWorkgroup` function.
 
@@ -96,7 +98,7 @@ fn reduceWorkgroup(input: ptr<storage, array<u32>, read>) -> u32 {
 
 The above code uses storage `wg_temp` located in workgroup memory. WGSL requires that variables in the workgroup address space be declared at the module scope, which is a significant limitation on modularity. Who declares this storage? How big is it? Why can't I declare it within the `reduceWorkgroup` function?
 
-We could declare the workgroup memory at the module scope as follows:
+We could declare the workgroup memory `wg_temp_reduceWorkgroup` at the module scope as follows:
 
 ```wgsl
 var<workgroup> wg_temp_reduceWorkgroup: array<atomic<u32>, 1>;
@@ -170,7 +172,7 @@ Note that nothing in the actual kernel itself is specific to datatype. (Or workg
 
 #### ... across datatypes
 
-So, as an experiment, let's consider adding another `reduceWorkgroup` function that reduces `f32` values rather than the `u32` values above. The host code does not change, but the kernel code does:
+So, as an experiment, let's consider adding another `reduceWorkgroup` function that reduces `f32` values rather than the `u32` values above. The callee code does not change, but the library function implementation does:
 
 ```wgsl
 var<workgroup> wg_temp: array<atomic<f32>, 1>;
@@ -183,7 +185,7 @@ fn reduceWorkgroup(input: ptr<storage, array<f32>, read>,
 }
 ```
 
-This addition of an `f32 reduceWorkgroup` function generates two immediate new issues:
+This addition of an `f32 reduceWorkgroup` function uncovers two new issues:
 
 - The `wg_temp` workgroup variable now has a name collision between the `u32` variant and the `f32` variant.
 - We now have two different functions named `reduceWorkgroup`, which is not permitted in WGSL. We can't overload a function name. Type-specific dispatch would be useful here.

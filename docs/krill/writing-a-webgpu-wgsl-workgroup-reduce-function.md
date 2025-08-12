@@ -137,9 +137,9 @@ While this second argument to `reduceWorkgroup` adds flexibility, it would be ni
 
 ## A Working Implementation
 
-Host (WebGPU JS) code:
+Kernel (WGSL) code:
 
-```js
+```wgsl
 @compute @workgroup_size(128) fn reduceKernel(
   @builtin(global_invocation_id) gid: vec3u,
   @builtin(local_invocation_index) lidx: u32,
@@ -151,7 +151,7 @@ Host (WebGPU JS) code:
 }
 ```
 
-Kernel (WGSL) code:
+Implementation of `reduceWorkgroup`:
 
 ```wgsl
 var<workgroup> wg_temp: array<atomic<u32>, 1>;

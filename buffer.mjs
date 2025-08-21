@@ -209,7 +209,7 @@ export class Buffer {
     const usage = args.usage ?? this.usage;
     if (this.buffer) {
       console.info("Buffer::createGPUBuffer: Destroying", this.buffer.label);
-      this.buffer.destroy();
+      //// this.buffer.destroy();
     }
     this.device.pushErrorScope("out-of-memory");
     this.buffer = this.device.createBuffer({
@@ -245,7 +245,7 @@ export class Buffer {
 
   createMappableGPUBuffer(size) {
     if (this.#mappableGPUBuffer) {
-      this.#mappableGPUBuffer.destroy();
+      //// this.#mappableGPUBuffer.destroy();
     }
     this.device.pushErrorScope("out-of-memory");
     this.#mappableGPUBuffer = this.device.createBuffer({
@@ -319,10 +319,10 @@ export class Buffer {
 
   destroy() {
     if (this.#gpuBuffer && this.#gpuBuffer.buffer) {
-      this.#gpuBuffer.buffer.destroy();
+      //// this.#gpuBuffer.buffer.destroy();
     }
     if (this.#mappableGPUBuffer) {
-      this.#mappableGPUBuffer.destroy();
+      //// this.#mappableGPUBuffer.destroy();
     }
   }
 

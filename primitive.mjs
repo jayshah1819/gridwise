@@ -795,7 +795,7 @@ dispatchGeometry: ${dispatchGeometry}`);
             /* just use the existing buffer */
           } else {
             if (existingBuffer?.buffer) {
-              existingBuffer.buffer.destroy();
+              //// existingBuffer.buffer.destroy();
             }
             this.device.pushErrorScope("out-of-memory");
             const allocatedBuffer = this.device.createBuffer({
@@ -835,6 +835,12 @@ dispatchGeometry: ${dispatchGeometry}`);
           break;
         }
         case WriteGPUBuffer: {
+          if (!this.hasBuffer(action.label)) {
+            console.warn(
+              "Primitive::WriteGPUBuffer: Primitive has no knowledge of buffer",
+              action.label
+            );
+          }
           const gpuBuffer = this.getBuffer(action.label).buffer;
           this.device.queue.writeBuffer(
             gpuBuffer.buffer,
@@ -874,7 +880,7 @@ dispatchGeometry: ${dispatchGeometry}`);
     /* destroy every buffer */
     // eslint-disable-next-line no-unused-vars
     for (const [name, buffer] of Object.entries(this.__buffers)) {
-      buffer.destroy();
+      //// buffer.destroy();
     }
   }
 }

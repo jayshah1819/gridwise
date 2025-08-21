@@ -232,6 +232,41 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
       return Region(x_val, y_val, sz_val);
     }
 
+    fn baseCaseTranspose(
+        builtinsUniform: BuiltinsUniform,
+        builtinsNonuniform: BuiltinsNonuniform,
+        regionIn: Region,
+        matrixWidthHeight: u32) {
+      /* uses wg_matrix */
+      /** can be more efficient if we pad the matrix
+       * in workgroup memory to avoid bank conflicts */
+      /* absolutely this is hardcoded: one thread per matrix element */
+      var lidx = builtinsNonuniform.lidx;
+      var offsetx = (lidx % regionIn.sz);
+      var offsety = (lidx / regionIn.sz);
+      var xsrc = regionIn.x + offsetx;
+      var ysrc = regionIn.y + offsety;
+      var xdest = regionIn.y + offsetx;
+      var ydest = regionIn.x + offsety;
+      /* read into workgroup memory in row-major order */
+      wg_matrix[lidx] = inputBuffer[ysrc * matrixWidthHeight + xsrc];
+      /* read out of workgroup memory in column-major order */
+      workgroupBarrier();
+      outputBuffer[ydest * matrixWidthHeight + xdest] =
+        wg_matrix[offsetx * regionIn.sz + offsety];
+
+      /* this serial code works */
+      // if (builtinsNonuniform.lidx == 0) {
+        /* do it in one thread for now, this will become whole-workgroup */
+        // for (var xx = region.x; xx < region.x + region.sz; xx++) {
+        //   for (var yy = region.y; yy < region.y + region.sz; yy++) {
+        //     outputBuffer[xx * matrixWidthHeight + yy] =
+        //       inputBuffer[yy * matrixWidthHeight + xx];
+        //   }
+        // }
+      // }
+    }
+
     @group(0) @binding(0)
     var<storage, read_write> outputBuffer: array<${this.datatype}>;
 
@@ -246,7 +281,7 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
     var<storage, read_write> workUnitsComplete: atomic<u32>;
 
     @group(0) @binding(4)
-    var<storage, read_write> debugBuffer: array<${this.datatype}>;
+    var<storage, read_write> debugBuffer: array<atomic<${this.datatype}>>;
 
     @group(1) @binding(0)
     var<uniform> transposeParameters : TransposeParameters;
@@ -259,14 +294,7 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
     var<workgroup> wg_broadcast_currentworkUnitsComplete: u32;
     var<workgroup> wg_broadcast_foundWork: u32;
 
-    fn performTranspose(workUnit: u32) {
-      /* uses wg_matrix */
-      /** can be more efficient if we pad the matrix
-       * in workgroup memory to avoid bank conflicts */
-
-    }
-
-    @compute @workgroup_size(${this.workgroupCount}, 1, 1)
+    @compute @workgroup_size(${this.workgroupSize}, 1, 1)
     fn workQueueMatrixTranspose(builtinsUniform: BuiltinsUniform,
         builtinsNonuniform: BuiltinsNonuniform) {
       var matrixWidthHeight = transposeParameters.matrixWidthHeight;
@@ -274,10 +302,10 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
       let workQueueLength = arrayLength(&workQueue);
       var totalWorkUnits = transposeParameters.totalWorkUnits;
       let wgid = builtinsUniform.wgid.x;
-      var readSearchLocation = wgid;
-      var writeSearchLocation = wgid;
+      var readSearchLocation: u32 = wgid;
+      var writeSearchLocation: u32 = wgid;
 
-      for (var i = 0; i < 100; i++) { /* so we don't go into an infinite loop */
+      for (var i = 0; i < 3000000; i++) { /* so we don't go into an infinite loop */
       // loop { /* this is the loop we want when we're production-ready */
         /* for now, invariant is we enter this loop with no work */
 
@@ -295,12 +323,15 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
             wg_broadcast_currentworkUnitsComplete = atomicLoad(&workUnitsComplete);
             wg_broadcast_foundWork = 0;
           }
-          if (workgroupUniformLoad(&wg_broadcast_currentworkUnitsComplete) == totalWorkUnits) {
+          var currentworkUnitsComplete = workgroupUniformLoad(&wg_broadcast_currentworkUnitsComplete);
+          if (currentworkUnitsComplete >= totalWorkUnits) { /* Look into why >= has different behavior than == */
             return;
           }
           /* still work to do. */
           /* thread 0 does all the work */
           if (builtinsNonuniform.lidx == 0) {
+            /* below plots requests (atomic exchange) as function of how much work we have finished */
+            // atomicAdd(&debugBuffer[wg_broadcast_currentworkUnitsComplete], 1u);
             var tempWorkUnit = atomicLoad(&workQueue[readSearchLocation]);
             if (tempWorkUnit != 0) {
               /* there's work at readSearchLocation! */
@@ -308,6 +339,7 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
                 atomicCompareExchangeWeak(&workQueue[readSearchLocation], tempWorkUnit, 0);
               if (exchangeResult.exchanged == true) {
                 /* found a piece of work, break out of loop */
+                atomicStore(&debugBuffer[wg_broadcast_currentworkUnitsComplete], readSearchLocation);
                 wg_broadcast_workUnit = tempWorkUnit;
                 wg_broadcast_foundWork = 1;
               } else {
@@ -319,60 +351,50 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
           if (workgroupUniformLoad(&wg_broadcast_foundWork) == 1) {
             break;
           }
-        }
+        } /* end loop over work queue to find work to consume */
         workgroupBarrier();
 
-        /* Insert (add work)
-         * - Find an empty slot
-         * - Atomic weak compare-exchange myWork with that slot
-         * - Success means you get back a zero
-         * - Failure: Start over
-         */
         let myWorkUnit = workgroupUniformLoad(&wg_broadcast_workUnit);
         if (myWorkUnit != 0) {
+          /* process the work we found */
           /* not sure if there is a case where myWorkUnit == 0, but if we
            * do see that, we can just skip the insert phase */
           var myRegion = u32ToRegion(myWorkUnit, BASE_CASE_WIDTH_HEIGHT_LOG2);
           if (myRegion.sz == baseCaseWidthHeight) {
             /* base case, actually transpose this region */
-            if (builtinsNonuniform.lidx == 0) {
-              /* do it in one thread for now, this will become whole-workgroup */
-              for (var xx = myRegion.x; xx < myRegion.x + myRegion.sz; xx++) {
-                for (var yy = myRegion.y; yy < myRegion.y + myRegion.sz; yy++) {
-                  outputBuffer[xx * matrixWidthHeight + yy] =
-                    inputBuffer[yy * matrixWidthHeight + xx];
-                }
-              }
-            }
+            baseCaseTranspose(builtinsUniform, builtinsNonuniform, myRegion, matrixWidthHeight);
             if (builtinsNonuniform.lidx == 0) {
               var wuc = atomicAdd(&workUnitsComplete, 1u);
-              debugBuffer[256u + wuc] = wuc;
+              // below: which workgroup does which base-case matrix transpose?
+              // debugBuffer[wuc] = wgid;
             }
           } else {
-            /* subdivide and place 4 pieces of work into the queue */
+            /* Insert (add work)
+             * - Subdivide work into 4 subpieces, and for each:
+             *   - Find an empty slot
+             *   - Atomic weak compare-exchange myWork with that slot
+             *   - Success means you get back a zero
+             *   - Failure: Start over
+             */
             /* currently, do this serially in thread zero */
             if (builtinsNonuniform.lidx == 0) {
-              for (var j = 0u; j < 4; ) {
+              for (var j = 0u; j < 4; ) { /* loop until all work is placed in queue */
                 var deltaX = select(0u, myRegion.sz / 2, (j & 0x1) != 0);
                 var deltaY = select(0u, myRegion.sz / 2, (j & 0x2) != 0);
                 var newWorkUnit = regionToU32(Region(myRegion.x + deltaX,
                                                      myRegion.y + deltaY,
                                                      myRegion.sz / 2),
                                               BASE_CASE_WIDTH_HEIGHT_LOG2);
-                debugBuffer[writeSearchLocation * 8] = myRegion.x + deltaX;
-                debugBuffer[writeSearchLocation * 8 + 1] = myRegion.y + deltaY;
-                debugBuffer[writeSearchLocation * 8 + 2] = myRegion.sz / 2;
-                debugBuffer[writeSearchLocation * 8 + 3] = writeSearchLocation;
-                debugBuffer[writeSearchLocation * 8 + 4] = newWorkUnit;
                 /* try to post only into an empty slot */
                 var tempWorkUnit = atomicLoad(&workQueue[writeSearchLocation]);
+                /* Next line: store where you last wrote as a function of work units complete */
+                // atomicStore(&debugBuffer[wg_broadcast_currentworkUnitsComplete], writeSearchLocation);
                 if (tempWorkUnit == 0) {
                   /* there's an empty slot at writeSearchLocation! */
                   var exchangeResult =
                     atomicCompareExchangeWeak(&workQueue[writeSearchLocation], 0u, newWorkUnit);
                   if (exchangeResult.exchanged == true) {
                     /* successfully posted work, move to next piece of work */
-                    debugBuffer[writeSearchLocation * 8 + 5] = atomicLoad(&workQueue[j]);
                     j = j + 1;
                   } else {
                     /* someone else got the work first */
@@ -382,14 +404,15 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
               } /* loop over inserting 4 work units */
             } /* subdivide and insert work: I am thread zero */
           } /* if base case or not */
-        } /* valid work unit to consume */
-      } /* loop over number of trials */
+        } /* if valid work unit to consume */
+      } /* loop forever until all computation is done */
     } /* end kernel workQueueMatrixTranspose */`;
     return kernel;
   };
 
   finalizeRuntimeParameters() {
     this.workgroupCount = this.workgroupCount ?? 256;
+    this.workgroupSize = 256;
     this.baseCaseWidthHeight = this.baseCaseWidthHeight ?? 16;
     this.baseCaseWidthHeight_log2 = Math.log2(this.baseCaseWidthHeight);
 
@@ -402,9 +425,8 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
     this.transposeParameters[2] =
       (this.matrixWidthHeight / this.baseCaseWidthHeight) ** 2;
 
-    // make this big enough to store everything
-    this.workQueueSize =
-      this.workQueueSize ?? (4 * inputLength) / this.transposeParameters[2];
+    // make this big enough to store all leaves
+    this.workQueueSize = this.workQueueSize ?? 4 * this.transposeParameters[2];
 
     console.info("Transpose parameters", this.transposeParameters);
 
@@ -420,7 +442,14 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
     const initialWork = this.regionToU32(initialWorkRegion);
     this.workQueue[0] = initialWork; /* the entire matrix */
 
-    console.log(initialWorkRegion, initialWork, this.workQueue);
+    console.log(
+      "initialWorkRegion",
+      initialWorkRegion,
+      "initialWork",
+      initialWork,
+      "this.workQueue",
+      this.workQueue
+    );
 
     this.workUnitsCompleteLength = 1;
     this.workUnitsCompleteSize =
@@ -469,7 +498,7 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
         bufferTypes,
         bindings,
         label: `work queue matrix transpose (${this.transposeParameters[0]} x ${this.transposeParameters[0]}) [subgroups: ${this.useSubgroups}]`,
-        logKernelCodeToConsole: true,
+        logKernelCodeToConsole: false,
         getDispatchGeometry: () => {
           return [this.workgroupCount];
         },
@@ -577,18 +606,27 @@ class WorkQueueMatrixTranspose extends BaseMatrixTranspose {
   };
 }
 
+export const TransposeSizeTimingPlot = {
+  x: { field: "inputBytes", label: "Input array size (B)" },
+  y: { field: "bandwidth", label: "Achieved bandwidth (GB/s)" },
+  stroke: { field: "timing" },
+  test_br: "gpuinfo.description",
+  caption: "CPU timing (performance.now), GPU timing (timestamps)",
+};
+
 const TransposeParams = {
-  inputLength: [2 ** 14] /* sqrt(inputLength) == matrix side length */,
+  inputLength: [2 ** 18] /* sqrt(inputLength) == matrix side length */,
   datatype: ["u32"],
   disableSubgroups: [false],
-  workgroupCount: [1],
+  workgroupCount: [256],
 };
 
 export const TransposeRegressionSuite = new BaseTestSuite({
   category: "transpose",
   testSuite: "workqueue",
-  trials: 0,
+  trials: 5,
   initializeCPUBuffer: "fisher-yates",
   params: TransposeParams,
   primitive: WorkQueueMatrixTranspose,
+  // plots: [TransposeSizeTimingPlot],
 });

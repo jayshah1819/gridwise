@@ -33,6 +33,11 @@ WebGPU Projects
 Other GPU projects
 
 - https://github.com/facebookresearch/dietgpu (ANS)
+- Futhark
+  - https://futhark-lang.org/blog/2024-07-17-opencl-cuda-hip.html scan
+  - https://futhark-lang.org/publications/two-things-robert-did.pdf Parallel Differentiation and Rank Polymorphism
+- https://dl.acm.org/doi/10.1145/3318.3478 Optimal parallel generation of a computation tree form
+- https://github.com/Snektron/pareas Snektron GPU compiler
 
 ---
 

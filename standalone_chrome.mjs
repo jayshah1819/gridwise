@@ -1,3 +1,3 @@
-import { main } from "http://localhost:8080/webgpu-benchmarking/standalone.mjs";
+import { main } from "http://localhost:8080/gridwise/standalone.mjs";
 
 main(navigator);

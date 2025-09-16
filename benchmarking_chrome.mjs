@@ -4,8 +4,8 @@ const isLocalhost =
   window.location.protocol === "file:";
 
 const modulePath =
-  (isLocalhost ? window.location.origin : "https://jowens.github.io") +
-  "/webgpu-benchmarking/benchmarking.mjs";
+  (isLocalhost ? window.location.origin : "https://gridwise-js.github.io") +
+  "/gridwise/benchmarking.mjs";
 
 import(modulePath)
   .then(({ main }) => {
@@ -15,5 +15,5 @@ import(modulePath)
     console.error("Error loading module", error);
   });
 
-//import { main } from "http://localhost:8000/webgpu-benchmarking/benchmarking.mjs";
+//import { main } from "http://localhost:8000/gridwise/benchmarking.mjs";
 // main(navigator);

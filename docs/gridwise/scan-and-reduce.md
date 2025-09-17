@@ -8,17 +8,17 @@ date: 2025-09-16
 
 ## Terminology
 
-Scan inputs an array of *n* data elements and outputs an array of the same size. Output element *n* is the "sum" of all previous input elements. More generally, that "sum" operator can be any [monoid](https://en.wikipedia.org/wiki/Monoid) (a binary operation with an identity element). If the operator is addition, scan is often called prefix-sum, but we can also compute a prefix-multiplication, prefix-max or -min, or many other operators. For simplicity, we will use "sum" and addition in this article. (Gridwise supports any user-specified monoid.)
+Scan inputs an array of *n* data elements and outputs an array of the same size. Output element *i* is the "sum" of the input elements up to element *i*. More generally, that "sum" operator can be any [monoid](https://en.wikipedia.org/wiki/Monoid) (a binary operation with an identity element). If the operator is addition, scan is often called prefix-sum, but we can also compute a prefix-multiplication, prefix-max or -min, or many other operators. For simplicity, we will use "sum" and addition in this article. (Gridwise supports any user-specified monoid.)
 
-We also use the term "reduce", where a reduction is the "sum" of all elements in the input set. 
+We also use the term "reduce", where a reduction of a set of inputs is the "sum" of all of those elements.
 
-Finally, scans have two flavors, exclusive and inclusive. Each output element of an *exclusive* scan is the sum of all previous items in the input, not including the current item. (`exclusive_out[n] = sum(in[0:n-1]).`) Each output element of an *inclusive* scan is the sum of all previous items in the input, up to and including the current item. (`inclusive_out[n] = sum(in[0:n]).`)
+Finally, scans have two variants, exclusive and inclusive. Each output element of an *exclusive* scan is the sum of all previous items in the input, not including the current item. (`exclusive_out[i] = sum(in[0:i-1]).`) Each output element of an *inclusive* scan is the sum of all previous items in the input, up to and including the current item. (`inclusive_out[i] = sum(in[0:i]).`)
 
 ## GPU Scan Background
 
 On GPUs, scan performance is bound by memory bandwidth. The best GPU scan implementations fully saturate the GPU's memory system. Thus the best GPU scan implementations are those that use algorithms that require the fewest accesses to memory. The "classic" GPU way to compute scan is to divide the input into tiles, compute the reduction of all elements in each tile, compute the prefix sum of those per-tile reductions, then use the values of that per-tile prefix sum as inputs into a blockwise scan of each individual tile. This strategy is called *reduce-then-scan*. The details aren't important; what is important is that for an *n*-element scan, we incur 3*n* memory accesses (*n* for the per-block reduction and 2*n* to read the input/write the output in the blockwise scan).
 
-In 2015, Yan et al. introduced an alternate implementation, [StreamScan](https://dl.acm.org/doi/10.1145/2442516.2442539), which required only 2*n* memory accesses. Like reduce-then-scan, StreamScan computes a reduction for each input tile, but unlike reduce-then-scan, StreamScan then *serializes* the scan of the per-tile values across tile processors. This approach is called a *chained scan*. Each tile processor must wait for its predecessor to compute the reduction of all elements up to and including the predecessor's tile. Then the tile adds its tile reduction to the global reduction and passes it to the next tile's processor, then uses the partial sum to complete the scan of its tile. The key data structure here is the carry chain, which stores the inclusive scan of the tile reductions. The most important aspect of this implementation is that it only requires reading and writing each element once and thus incurs only 2*n* memory references, the theoretical minimum.
+In 2015, Yan et al. introduced an alternate GPU-scan implementation, [StreamScan](https://dl.acm.org/doi/10.1145/2442516.2442539), which required only 2*n* memory accesses. Like reduce-then-scan, StreamScan computes a reduction for each input tile, but unlike reduce-then-scan, StreamScan then *serializes* the scan of the per-tile values across tile processors. This approach is called a *chained scan*. Each tile processor must wait for its predecessor to compute the reduction of all elements up to and including the predecessor's tile. Then the tile adds its tile reduction to the global reduction and passes it to the next tile's processor, then uses the partial sum to complete the scan of its tile. The key data structure here is the carry chain, which stores the inclusive scan of the tile reductions. The most important aspect of this implementation is that it only requires reading and writing each element once and thus incurs only 2*n* memory references, the theoretical minimum.
 
 (All of the above is covered in great detail in our [SPAA 2025 paper](https://dl.acm.org/doi/10.1145/3694906.3743326).)
 
@@ -26,9 +26,9 @@ In an ideal world, all tile processors could run in lockstep and have equal acce
 
 ## Decoupled Lookback and Forward Progress Guarantees
 
-NVIDIA GPUs make a *forward progress guarantee*: once a processor begins to process a tile, it is guaranteed to make progress on that tile; the GPU scheduler ensures the processor will be allocated compute time to move forward on its tile processing. This requirement is critical for Merrill and Garland's implementation of decoupled lookback.
+NVIDIA GPUs make a *forward progress guarantee*: once a processor begins to process a tile, it is guaranteed to make progress on that tile; the GPU scheduler ensures the processor will be allocated compute time to move forward on the processing of its tile. This guarantee is necessary for the correctness of Merrill and Garland's implementation of decoupled lookback.
 
-Unfortunately, not all GPUs provide this forward progress guarantee. [Apple and ARM GPUs do not.](https://dl.acm.org/doi/10.1145/3485508) At any point in the scan computation, some tiles are computing a result and other tiles are waiting for a previous tile to finish its computation and write it into the carry chain. Without the forward-progress guarantee, the computing tiles may be fully blocked by waiting tiles and never make progress, leading to a completely stalled computation. On Apple hardware, this locks up the entire machine.
+Unfortunately, not all GPUs provide this forward progress guarantee. [Apple and ARM GPUs do not.](https://dl.acm.org/doi/10.1145/3485508) At any point in the scan computation, some tiles are computing a result and other tiles are waiting for a previous tile to finish its computation and write it into the carry chain. Without the forward-progress guarantee, the computing tiles may be fully blocked by waiting tiles and never make progress, leading to a completely stalled computation. On Apple hardware, as we found during the development of our scan primitive, this locks up the entire machine.
 
 Deploying a WebGPU implementation that depends on a forward-progress guarantee is thus not a viable option.
 
@@ -42,13 +42,13 @@ Lookback and fallback were challenging to implement correctly.
 
 ### Gridwise's Reduce
 
-The carry chain in a chained scan stores the inclusive scan of the reduction of each tile. The last element in that carry chain is the sum of all input tiles and is thus the reduction of the entire input. A reduce can thus be implemented using the existing scan machinery (and run at full memory bandwidth). A traditional reduce implementation (computing tile reductions in parallel then reducing the tile reductions into a single value) could run just as fast, but would require a different implementation, so we have chosen to use the chained-scan implementation as Gridwise's reduce. When configured to compute reduce, our implementation leaves out any scan-specific computation (e.g., we don't have to compute the final per-tile scan).
+The carry chain in a chained scan stores the inclusive scan of the reduction of each tile. The last element in that carry chain is the sum of all input tiles and is thus the reduction of the entire input. A reduce can thus be implemented using the existing scan machinery (and run at full memory bandwidth). A traditional reduce implementation (computing tile reductions in parallel then reducing the tile reductions into a single value) would likely run just as fast, but would require a different implementation, so we have chosen to use the chained-scan implementation as Gridwise's reduce. When configured as a reduction primitive, our scan implementation leaves out any scan-specific computation (e.g., we don't have to compute the final per-tile scan).
 
 ### Leveraging Subgroups
 
 WebGPU's optional [subgroups](https://www.w3.org/TR/webgpu/#subgroups) feature enables WebGPU programs to use SIMD instructions within a workgroup. These can deliver significant performance gains for several reasons: they leverage custom hardware for the computation itself; they do not have to route data through workgroup memory; they require one hardware instruction to do what would take many hardware instructions in emulation; and they require fewer barriers. Gridwise has some, but incompletely deployed, [support for emulating SIMD instructions](subgroup-strategy.html). Our initial performance testing indicated that scan was 2.5x slower using subgroup emulation vs. using subgroup hardware.
 
-It is possible that the fastest scan and reduce implementations in the absence of subgroup hardware are not chained ones. We have not investigated this at all. In general, in Gridwise, we expect that subgroup operations are available.
+It is possible that the fastest scan and reduce implementations in the absence of subgroup hardware are not chained ones. We have not investigated this at all. In general, in Gridwise, we expect that subgroup operations are available, and we use them to reduce across subgroups and workgroups, to broadcast information from one thread to others, and to compute local subgroup-sized scans as part of workgroup scans.
 
 ## Configuring and Calling Gridwise Scan and Reduce
 
@@ -93,7 +93,7 @@ testInputBuffer = new Buffer({
   initializeCPUBuffer: true /* fill with default data */,
   createGPUBuffer: true,
   initializeGPUBuffer: true /* with CPU data */,
-  createMappableGPUBuffer: false, /* not reading this back */
+  createMappableGPUBuffer: false, /* never reading this back */
 });
 primitive.registerBuffer(testInputBuffer);
 ```
@@ -125,8 +125,6 @@ await primitive.execute({
   enableCPUTiming: true,
 });
 ```
-
-### Inputs
 
 ## Usage and performance notes
 

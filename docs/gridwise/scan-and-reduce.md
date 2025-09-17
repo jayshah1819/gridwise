@@ -95,7 +95,7 @@ testInputBuffer = new Buffer({
   initializeGPUBuffer: true /* with CPU data */,
   createMappableGPUBuffer: false, /* never reading this back */
 });
-primitive.registerBuffer(testInputBuffer);
+primitdldfscanPrimitiveive.registerBuffer(testInputBuffer);
 ```
 
 ### Calling scan or reduce
@@ -112,14 +112,14 @@ Other possible arguments (which are timing-specific and thus which you are unlik
 Note that `execute()` is declared `async`.
 
 ```js
-await primitive.execute();
+await dldfscanPrimitive.execute();
 // or, if we want to specify buffers only when execute is called
-await primitive.execute({
+await dldfscanPrimitive.execute({
   inputBuffer: mySrcBuffer,
   outputBuffer: myDestBuffer,
 });
 // or (maybe if you're benchmarking)
-await primitive.execute({
+await dldfscanPrimitive.execute({
   trials: 1,
   enableGPUTiming: false,
   enableCPUTiming: true,

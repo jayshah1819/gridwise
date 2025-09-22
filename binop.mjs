@@ -106,7 +106,7 @@ export class BinOpMax extends BinOp {
         this.identity = -3.402823466385288e38; // -FLT_MAX
         break;
       case "i32":
-        this.identity = 0x80000000;
+        this.identity = -2147483648;
         break;
       case "u32": // fall-through OK
       default:

@@ -33,7 +33,6 @@ class WebGPUObjectCache {
         enabled: this.initiallyEnabled.includes(cache),
       });
     }
-    console.log(this);
   }
   get stats() {
     return `Cache hits/misses:

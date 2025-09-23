@@ -138,3 +138,19 @@ export class BinOpMultiply extends BinOp {
 export const BinOpMultiplyU32 = new BinOpMultiply({ datatype: "u32" });
 export const BinOpMultiplyF32 = new BinOpMultiply({ datatype: "f32" });
 export const BinOpMultiplyI32 = new BinOpMultiply({ datatype: "i32" });
+
+export function makeBinOp({ op, datatype }) {
+  switch (op) {
+    case "add":
+      return new BinOpAdd({ datatype });
+    case "max":
+      return new BinOpMax({ datatype });
+    case "min":
+      return new BinOpMin({ datatype });
+    case "mul":
+    case "multiply":
+      return new BinOpMultiply({ datatype });
+    default:
+      return new BinOp();
+  }
+}

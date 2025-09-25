@@ -5,7 +5,12 @@
  */
 
 import { range } from "./util.mjs";
-import { Kernel, AllocateBuffer, WriteGPUBuffer } from "./primitive.mjs";
+import {
+  Kernel,
+  AllocateBuffer,
+  WriteGPUBuffer,
+  CopyBufferToBuffer,
+} from "./primitive.mjs";
 import { BaseTestSuite } from "./testsuite.mjs";
 import { divRoundUp } from "./util.mjs";
 import { BaseSort } from "./sort.mjs";
@@ -28,6 +33,14 @@ export class OneSweepSort extends BaseSort {
      * and also defining MAX (largest possible key value) */
     this.keyDatatype = new Datatype(this.datatype);
     /* can now use this.keyDatatype.{wgslDatatype, is64Bit} */
+
+    /** OneSweep overwrites its input with its output
+     * This option copies the output into the temp buffer
+     * This is extra work that probably isn't necessary in production
+     * But it is useful if we're just trying to make sort look like
+     *   any other primitive that has separate input and output buffers
+     */
+    this.copyOutputToTemp = args.copyOutputToTemp ? true : false;
 
     this.knownBuffers = [
       "keysInOut",
@@ -1342,6 +1355,25 @@ export class OneSweepSort extends BaseSort {
           },
         })
       );
+    }
+    if (this.copyOutputToTemp) {
+      /* This is probably NOT what anyone wants to do in production
+       * but it is useful for simple-example purposes. It copies
+       * the input/output buffer(s) into the temp buffer(s) */
+      actions.push(
+        new CopyBufferToBuffer({
+          source: "keysInOut",
+          destination: "keysTemp",
+        })
+      );
+      if (this.type === "keyvalue") {
+        actions.push(
+          new CopyBufferToBuffer({
+            source: "payloadInOut",
+            destination: "payloadTemp",
+          })
+        );
+      }
     }
     return actions;
   }

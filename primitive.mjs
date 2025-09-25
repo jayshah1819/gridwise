@@ -848,6 +848,26 @@ dispatchGeometry: ${dispatchGeometry}`);
           );
           break;
         }
+        case CopyBufferToBuffer: {
+          /* copy GPU buffer action.source to action.destination */
+          for (const b of ["source", "destination"]) {
+            if (!this.hasBuffer(action[b])) {
+              console.warn(
+                "Primitive::CopyBufferToBuffer: Primitive has no knowledge of ${b} buffer ${action[b]}",
+                action.label
+              );
+            }
+          }
+          const sourceBuffer = this.getBuffer(action.source).buffer;
+          const destBuffer = this.getBuffer(action.destination).buffer;
+          encoder.copyBufferToBuffer(
+            sourceBuffer.buffer,
+            sourceBuffer.buffer.offset ?? 0,
+            destBuffer.buffer,
+            destBuffer.buffer.offset ?? 0
+          );
+          break;
+        }
       }
     }
 
@@ -923,6 +943,12 @@ export class AllocateBuffer {
 }
 
 export class WriteGPUBuffer {
+  constructor(args) {
+    Object.assign(this, args);
+  }
+}
+
+export class CopyBufferToBuffer {
   constructor(args) {
     Object.assign(this, args);
   }

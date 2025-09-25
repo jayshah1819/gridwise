@@ -2,12 +2,17 @@ import { Pane } from "https://cdn.jsdelivr.net/npm/tweakpane@4.0.5/dist/tweakpan
 import { BinOpAdd, BinOpMax, BinOpMin, makeBinOp } from "../binop.mjs";
 import { datatypeToTypedArray } from "../util.mjs";
 import { DLDFScan } from "../scandldf.mjs";
+import { OneSweepSort } from "../onesweep.mjs";
 
 /* set up a WebGPU device */
 const adapter = await navigator.gpu?.requestAdapter();
 const hasSubgroups = adapter.features.has("subgroups");
 const hasTimestampQuery = adapter.features.has("timestamp-query");
 const device = await adapter?.requestDevice({
+  requiredLimits: {
+    /* this larger-than-default is only necessary for sort */
+    maxComputeWorkgroupStorageSize: 32768,
+  },
   requiredFeatures: [
     ...(hasTimestampQuery ? ["timestamp-query"] : []),
     ...(hasSubgroups ? ["subgroups"] : []),
@@ -21,17 +26,18 @@ if (!device) {
 /* set up the UI, with parameters stored in the "params" object */
 const pane = new Pane();
 const params = {
-  scanType: "exclusive",
+  primitive: "exclusive",
   datatype: "u32",
   binop: "add",
   inputLength: 2 ** 20,
 };
-pane.addBinding(params, "scanType", {
+pane.addBinding(params, "primitive", {
   options: {
     // what it shows : what it returns
-    exclusive: "exclusive",
-    inclusive: "inclusive",
+    exclusive_scan: "exclusive",
+    inclusive_scan: "inclusive",
     reduce: "reduce",
+    sort_keys: "sort_keys",
   },
 });
 pane.addBinding(params, "datatype", {
@@ -64,7 +70,7 @@ button.on("click", async () => {
   const validation = await buildAndRun();
   results.innerHTML = `<p>I ran this</p>
   <ul>
-  <li>Primitive: ${params.scanType}
+  <li>Primitive: ${params.primitive}
   <li>Datatype: ${params.datatype}
   <li>Binop: ${params.binop}
   <li>Input length: ${params.inputLength} (items)
@@ -91,11 +97,12 @@ async function buildAndRun() {
   for (let i = 0; i < params.inputLength; i++) {
     switch (params.datatype) {
       case "u32":
-      case "i32":
-        memsrc[i] = i === 0 ? 11 : memsrc[i - 1] + 1; // trying to get u32s
+        /* roughly, [0, 32] */
+        memsrc[i] = Math.floor(Math.random() * Math.pow(2, 5));
         break;
       case "f32":
-        /* attempt to evenly distribute ints between [-1023, 1023] */
+      case "i32":
+        /* roughly, [-1024, 1024] */
         memsrc[i] =
           (Math.random() < 0.5 ? 1 : -1) *
           Math.floor(Math.random() * Math.pow(2, 10));
@@ -105,21 +112,28 @@ async function buildAndRun() {
   console.log("input array", memsrc);
 
   /* declare the primitive */
-  const dldfscanPrimitive = new DLDFScan({
-    device,
-    binop: makeBinOp({ op: params.binop, datatype: params.datatype }),
-    type: params.scanType,
-    datatype: params.datatype,
-  });
-
-  const primitive = dldfscanPrimitive;
+  let primitive;
+  switch (params.primitive) {
+    case "sort_keys":
+      primitive = new OneSweepSort({
+        device,
+        datatype: params.datatype,
+        copyOutputToTemp: true,
+      });
+      break;
+    default:
+      primitive = new DLDFScan({
+        device,
+        binop: makeBinOp({ op: params.binop, datatype: params.datatype }),
+        type: params.primitive,
+        datatype: params.datatype,
+      });
+      break;
+  }
 
   /* size the output */
   let memdestBytes;
-  if (
-    primitive.constructor.name === "DLDFScan" &&
-    primitive.type === "reduce"
-  ) {
+  if (params.primitive === "reduce") {
     memdestBytes = 4;
   } else {
     memdestBytes = memsrc.byteLength;
@@ -129,7 +143,10 @@ async function buildAndRun() {
   const memsrcBuffer = device.createBuffer({
     label: `memory source buffer (${params.datatype})`,
     size: memsrc.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage:
+      GPUBufferUsage.STORAGE |
+      GPUBufferUsage.COPY_DST |
+      GPUBufferUsage.COPY_SRC /* allows copy from this buffer for sort validation */,
   });
   device.queue.writeBuffer(memsrcBuffer, 0, memsrc);
 
@@ -149,10 +166,21 @@ async function buildAndRun() {
   });
 
   /* actually run the primitive */
-  await primitive.execute({
-    inputBuffer: memsrcBuffer,
-    outputBuffer: memdestBuffer,
-  });
+  /* sort and scan have different arguments */
+  switch (params.primitive) {
+    case "sort_keys":
+      await primitive.execute({
+        keysInOut: memsrcBuffer,
+        keysTemp: memdestBuffer,
+      });
+      break;
+    default:
+      await primitive.execute({
+        inputBuffer: memsrcBuffer,
+        outputBuffer: memdestBuffer,
+      });
+      break;
+  }
 
   /* copy output back to host */
   const encoder = device.createCommandEncoder({
@@ -177,10 +205,24 @@ async function buildAndRun() {
   console.log("output array", memdest);
 
   if (primitive.validate) {
-    const errorstr = primitive.validate({
-      inputBuffer: memsrc,
-      outputBuffer: memdest,
-    });
+    let errorstr;
+    switch (params.primitive) {
+      case "sort_keys":
+        errorstr = primitive.validate({
+          inputKeys: memsrc,
+          outputKeys: memdest,
+        });
+        break;
+      default:
+        /* this validation is only possible because the output is copied
+         * into outputBuffer by configuring the OneSweepSort primitive with
+         * copyOutputToTemp: true */
+        errorstr = primitive.validate({
+          inputBuffer: memsrc,
+          outputBuffer: memdest,
+        });
+        break;
+    }
     if (errorstr === "") {
       return "Validation passed";
     } else {
@@ -190,5 +232,3 @@ async function buildAndRun() {
     return "Validation not performed";
   }
 }
-
-buildAndRun();

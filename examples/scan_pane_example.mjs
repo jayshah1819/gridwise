@@ -18,6 +18,7 @@ if (!device) {
   console.error("Fatal error: Device does not support WebGPU.");
 }
 
+/* set up the UI, with parameters stored in the "params" object */
 const pane = new Pane();
 const params = {
   scanType: "exclusive",
@@ -50,14 +51,29 @@ pane.addBinding(params, "binop", {
   },
 });
 pane.addBinding(params, "inputLength", { format: (v) => Math.floor(v) });
-pane.on("change", async (ev) => {
+const button = pane.addButton({
+  title: "Start",
+});
+button.on("click", async () => {
   if (params.inputLength % 4 !== 0) {
     params.inputLength = Math.floor(params.inputLength / 4) * 4;
   }
+  /* because inputLength may change here, we need to refresh the pane */
   pane.refresh();
-  buildAndRun();
+  const results = document.getElementById("webgpu-results");
+  const validation = await buildAndRun();
+  results.innerHTML = `<p>I ran this</p>
+  <ul>
+  <li>Primitive: ${params.scanType}
+  <li>Datatype: ${params.datatype}
+  <li>Binop: ${params.binop}
+  <li>Input length: ${params.inputLength} (items)
+  </ul>
+  <p>${validation}</p>`;
 });
+/* end of setting up the UI */
 
+/* all of the work is in this function */
 async function buildAndRun() {
   /* generate an input dataset */
   if (params.inputLength % 4 !== 0) {
@@ -166,10 +182,12 @@ async function buildAndRun() {
       outputBuffer: memdest,
     });
     if (errorstr === "") {
-      console.info("Validation passed");
+      return "Validation passed";
     } else {
-      console.error(`Validation failed:\n${errorstr}`);
+      return `Validation failed:\n${errorstr}`;
     }
+  } else {
+    return "Validation not performed";
   }
 }
 

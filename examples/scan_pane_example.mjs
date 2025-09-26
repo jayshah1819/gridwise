@@ -133,20 +133,46 @@ async function buildAndRun() {
   const memsrc = new (datatypeToTypedArray(params.datatype))(
     params.inputLength
   );
-  /* the gymnastics below are to try to generate GPU-native {i,u,f}32
-   * datatypes, there's probably an easier/faster way to do it */
+
+  /* generate ~random input datasets that are friendly for a
+   * particular primitive */
   for (let i = 0; i < params.inputLength; i++) {
-    switch (params.datatype) {
-      case "u32":
-        /* roughly, [0, 32] */
-        memsrc[i] = Math.floor(Math.random() * Math.pow(2, 5));
+    switch (params.primitive) {
+      case "exclusive":
+      case "inclusive":
+      case "reduce":
+        switch (params.datatype) {
+          case "u32":
+            /* roughly, [0, 32], ints */
+            memsrc[i] = Math.floor(Math.random() * Math.pow(2, 5));
+            break;
+          case "f32":
+          case "i32":
+            /* roughly, [-1024, 1024], ints */
+            memsrc[i] =
+              (Math.random() < 0.5 ? 1 : -1) *
+              Math.floor(Math.random() * Math.pow(2, 10));
+            break;
+        }
         break;
-      case "f32":
-      case "i32":
-        /* roughly, [-1024, 1024] */
-        memsrc[i] =
-          (Math.random() < 0.5 ? 1 : -1) *
-          Math.floor(Math.random() * Math.pow(2, 10));
+      case "sort_keys":
+      case "sort_values":
+        /* for sorting, we want all different values */
+        switch (params.datatype) {
+          case "u32":
+            /* roughly, [0, 2^28] */
+            memsrc[i] = Math.floor(Math.random() * Math.pow(2, 28));
+            break;
+          case "f32":
+          case "i32":
+            /* roughly, [-2^28, 2^28], ints */
+            memsrc[i] =
+              (Math.random() < 0.5 ? 1 : -1) *
+              Math.floor(Math.random() * Math.pow(2, 28));
+            break;
+        }
+        break;
+      default:
         break;
     }
   }

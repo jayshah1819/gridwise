@@ -23,23 +23,55 @@ if (!device) {
   console.error("Fatal error: Device does not support WebGPU.");
 }
 
+function isScan(primitive) {
+  return primitive === "exclusive" || primitive === "inclusive";
+}
+function isReduce(primitive) {
+  return primitive === "reduce";
+}
+function isSort(primitive) {
+  return primitive === "sort_keys" || primitive === "sort_values";
+}
+
 /* set up the UI, with parameters stored in the "params" object */
 const pane = new Pane();
 const params = {
+  /* defaults */
   primitive: "exclusive",
   datatype: "u32",
   binop: "add",
+  direction: "ascending",
   inputLength: 2 ** 20,
 };
-pane.addBinding(params, "primitive", {
-  options: {
-    // what it shows : what it returns
-    exclusive_scan: "exclusive",
-    inclusive_scan: "inclusive",
-    reduce: "reduce",
-    sort_keys: "sort_keys",
-  },
-});
+pane
+  .addBinding(params, "primitive", {
+    options: {
+      // what it shows : what it returns
+      exclusive_scan: "exclusive",
+      inclusive_scan: "inclusive",
+      reduce: "reduce",
+      sort_keys: "sort_keys",
+    },
+  })
+  /* this specializes the options to each primitive */
+  .on("change", (ev) => {
+    switch (ev.value) {
+      case "exclusive_scan":
+      case "inclusive_scan":
+      case "reduce":
+        binopPane.hidden = false;
+        directionPane.hidden = true;
+        break;
+      case "sort_keys":
+      case "sort_values":
+        binopPane.hidden = true;
+        directionPane.hidden = false;
+        break;
+      default:
+        console.error("Unhandled value in params/primitive binding", ev);
+        break;
+    }
+  });
 pane.addBinding(params, "datatype", {
   options: {
     // what it shows : what it returns
@@ -48,7 +80,7 @@ pane.addBinding(params, "datatype", {
     f32: "f32",
   },
 });
-pane.addBinding(params, "binop", {
+const binopPane = pane.addBinding(params, "binop", {
   options: {
     // what it shows : what it returns
     add: "add",
@@ -56,10 +88,19 @@ pane.addBinding(params, "binop", {
     min: "min",
   },
 });
+const directionPane = pane.addBinding(params, "direction", {
+  options: {
+    // what it shows : what it returns
+    ascending: "ascending",
+    descending: "descending",
+  },
+});
+directionPane.hidden = true;
 pane.addBinding(params, "inputLength", { format: (v) => Math.floor(v) });
 const button = pane.addButton({
   title: "Start",
 });
+
 button.on("click", async () => {
   if (params.inputLength % 4 !== 0) {
     params.inputLength = Math.floor(params.inputLength / 4) * 4;
@@ -118,6 +159,7 @@ async function buildAndRun() {
       primitive = new OneSweepSort({
         device,
         datatype: params.datatype,
+        direction: params.direction,
         copyOutputToTemp: true,
       });
       break;

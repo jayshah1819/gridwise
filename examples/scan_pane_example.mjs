@@ -56,8 +56,8 @@ pane
   /* this specializes the options to each primitive */
   .on("change", (ev) => {
     switch (ev.value) {
-      case "exclusive_scan":
-      case "inclusive_scan":
+      case "exclusive":
+      case "inclusive":
       case "reduce":
         binopPane.hidden = false;
         directionPane.hidden = true;

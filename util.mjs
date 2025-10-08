@@ -24,8 +24,14 @@ export function combinations(obj) {
   return gen(values, 0);
 }
 
-export const range = (min, max /* [min, max] */) =>
-  [...Array(max - min + 1).keys()].map((i) => i + min);
+export const range = (min, max) => {
+  const len = max - min + 1;
+  const result = new Array(len);
+  for (let i = 0; i < len; i++) {
+    result[i] = min + i;
+  }
+  return result;
+};
 
 export const arrayProd = (arr) => {
   if (typeof arr === "number") {
@@ -158,9 +164,9 @@ export function formatWGSL(wgslCode) {
     const pushLeft =
       /* lines like ") -> f32 {" */
       braceCount == 0 &&
-      (trimmedLine.startsWith(")") ||
-        trimmedLine.startsWith("]") ||
-        trimmedLine.startsWith("}"))
+        (trimmedLine.startsWith(")") ||
+          trimmedLine.startsWith("]") ||
+          trimmedLine.startsWith("}"))
         ? -1
         : 0;
 

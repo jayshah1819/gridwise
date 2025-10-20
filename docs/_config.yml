@@ -29,7 +29,7 @@ show_excerpts: true
 
 exclude:
   - misc/
-url: "https://github.com/gridwise-js/gridwise" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://gridwise-webgpu.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 github_username: gridwise
 
 # Build settings

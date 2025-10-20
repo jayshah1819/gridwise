@@ -12,6 +12,12 @@ let Plot = await import(
   "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm"
 );
 
+if (Window.crossOriginIsolated) {
+  console.info("IS cross-origin isolated");
+} else {
+  console.info("is NOT cross-origin isolated");
+}
+
 /* set up a WebGPU device */
 const adapter = await navigator.gpu?.requestAdapter();
 const hasSubgroups = adapter.features.has("subgroups");
@@ -134,7 +140,7 @@ button.on("click", async () => {
   <li>Primitive: ${params.primitive}
   <li>Datatype: ${params.datatype}
   <li>Binop: ${params.binop}
-  <li>Input length: ${params.inputCount} lengths from ${params.inputLengthStart} to ${params.inputLengthEnd} (items)
+  <li>Input lengths (in items): ${params.inputCount} lengths from ${params.inputLengthStart} to ${params.inputLengthEnd}
   </ul>
   <p>${validation}</p>`;
 });
@@ -362,12 +368,12 @@ async function buildAndRun() {
           break;
       }
       if (errorstr === "") {
-        returnStr += `Validation passed (input length: ${inputLength})<br/ >`;
+        returnStr += `Validation passed (input length: ${inputLength} items)<br/ >`;
       } else {
-        returnStr += `Validation failed (input length: ${inputLength})<br/ >${errorstr}<br/ >`;
+        returnStr += `Validation failed (input length: ${inputLength} items)<br/ >${errorstr}<br/ >`;
       }
     } else {
-      returnStr += `Validation not performed (input length: ${inputLength})<br/ >`;
+      returnStr += `Validation not performed (input length: ${inputLength} items)<br/ >`;
     }
   } /* end loop over input lengths */
   plotResults(results);

@@ -4,7 +4,7 @@ const isLocalhost =
   window.location.protocol === "file:";
 
 const modulePath =
-  (isLocalhost ? window.location.origin : "https://gridwise-js.github.io") +
+  (isLocalhost ? window.location.origin : "https://gridwise-webgpu.github.io") +
   "/gridwise/benchmarking.mjs";
 
 import(modulePath)

@@ -135,14 +135,14 @@ async function main(navigator) {
   //);
   // let testSuites = [DLDFScanMiniSuite];
   // let testSuites = [DLDFScanAccuracyRegressionSuite];
-  // let testSuites = [DLDFPerfSuite];
+  let testSuites = [DLDFPerfSuite];
   // let testSuites = [DLDFDottedCachePerfTestSuite];
   // let testSuites = [DLDFDottedCachePerf2TestSuite];
   // let testSuites = [DLDFSingletonWithTimingSuite];
   // let testSuites = [DLDFFailureSuite];
   // let testSuites = [StoneberryScanMiniSuite];
   // let testSuites = [SortOneSweepFunctionalRegressionSuite];
-  let testSuites = [SortOneSweep64v32Suite];
+  // let testSuites = [SortOneSweep64v32Suite];
   // let testSuites = [SortOneSweep64v321MNoPlotSuite];
 
   const expts = new Array(); // push new rows (experiments) onto this

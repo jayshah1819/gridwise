@@ -1,8 +1,10 @@
 ---
-layout: post
+layout: page
 title: "Gridwise WebGPU Primitive Strategy wrt Subgroups"
-date: 2025-08-21
+category: gridwise
+permalink: /gridwise/primitive-design/
 excerpt: "How Gridwise implements single-pass chained algorithms for sort, scan, and reduce with and without subgroup support."
+order: 7
 ---
 
 We wish to implement WebGPU sort, scan, and reduce. The fastest known GPU techniques for these operations are single-pass (chained) algorithms that minimize overall memory bandwidth. However, these techniques have historically been written using warp/subgroup support, and that subgroup support appears to be critical for their high performance. This document looks at the different considerations for different primitive implementations.

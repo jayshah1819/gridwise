@@ -20,11 +20,12 @@
 
 title: "Gridwise: WebGPU Compute Primitives in JavaScript"
 email: jowens@ece.ucdavis.edu
-description: >- # this means to ignore newlines until "baseurl:"
+description: >-
   Gridwise defines WebGPU compute primitives using JavaScript.
-baseurl: "/gridwise" # the subpath of your site, e.g. /blog
+baseurl: "/gridwise"
+url: "https://gridwise-webgpu.github.io"
+github_username: gridwise-webgpu
 
-# Minima settings
 show_excerpts: true
 
 exclude:
@@ -34,13 +35,20 @@ github_username: gridwise
 
 # Build settings
 theme: minima
-plugins: []
+plugins:
+  - jekyll-feed
 
-# Minima theme settings
-minima:
-  social_links: []
+collections:
+  gridwise:
+    output: true
+    permalink: /gridwise/:title/
 
-rss: false
+defaults:
+  - scope:
+      path: ""
+      type: "gridwise"
+    values:
+      layout: "post"
 
 # Exclude from processing.
 # The following items will not be processed, by default.

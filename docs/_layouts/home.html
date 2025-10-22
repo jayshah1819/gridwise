@@ -1,0 +1,30 @@
+---
+layout: default
+---
+
+<div class="home">
+  {%- if page.title -%}
+    <h1 class="page-heading">{{ page.title }}</h1>
+  {%- endif -%}
+
+  {{ content }}
+
+  {%- assign gridwise_pages = site.pages | where: "category", "gridwise" | sort: "order" -%}
+  {%- if gridwise_pages.size > 0 -%}
+    <ul class="post-list">
+      {%- for page in gridwise_pages -%}
+        <li>
+          <h3>
+            <a class="post-link" href="{{ page.url | relative_url }}">
+              {{ page.title | escape }}
+            </a>
+          </h3>
+          {%- if page.excerpt -%}
+            <p class="post-excerpt">{{ page.excerpt }}</p>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+
+</div>

@@ -1,5 +1,8 @@
 ---
-layout: post
+layout: page
 title: "Gridwise WebGPU @builtins Strategy"
-date: 2025-08-22
+category: gridwise
+permalink: /gridwise/builtins-strategy/
+excerpt: "Exploring the use of WGSL @builtin functions in Gridwise for optimal WebGPU primitive performance."
+order: 6
 ---

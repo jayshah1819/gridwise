@@ -1,0 +1,21 @@
+title: Gridwise
+email: jowens@ece.ucdavis.edu
+description: WebGPU compute primitives in JavaScript
+baseurl: "/gridwise"
+url: "https://gridwise-webgpu.github.io"
+github_username: gridwise
+
+markdown: kramdown
+theme: minima
+permalink: pretty
+plugins:
+  - jekyll-feed
+
+# Only show About in header navigation
+header_pages:
+  - about.markdown
+
+exclude:
+  - misc/
+  - Gemfile
+  - Gemfile.lock

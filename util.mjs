@@ -143,62 +143,6 @@ export function f32approxeq(reference, target) {
   );
 }
 
-/**
- * Generates an array of integers evenly spaced on a logarithmic scale,
- * with each point rounded to the nearest multiple of 4.
- *
- * The function interpolates on a log10 scale and then converts the values
- * back before rounding. The returned array will include points corresponding
- * to the start and stop values, each subjected to the rounding rule.
- *
- * @param {number} start The starting integer of the sequence. Must be a positive number.
- * @param {number} stop The ending integer of the sequence. Must be a positive number.
- * @param {number} numPoints The total number of points to generate. Must be at least 2.
- * @returns {number[]} An array of integers representing the log-spaced sequence.
- * @throws {Error} If numPoints is less than 2, or if start/stop are not positive.
- */
-export function logspaceRounded(start, stop, numPoints) {
-  // --- 1. Validate Inputs ---
-  if (numPoints < 2) {
-    throw new Error("The number of points must be at least 2.");
-  }
-  if (start <= 0 || stop <= 0) {
-    throw new Error(
-      "Start and stop values must be positive for a logarithmic scale."
-    );
-  }
-
-  /**
-   * Helper function to round a number to the nearest multiple of 4.
-   * @param {number} num The number to round.
-   * @returns {number} The number rounded to the nearest multiple of 4.
-   */
-  const roundToNearestMultipleOf4 = (num) => {
-    return Math.round(num / 4) * 4;
-  };
-
-  // --- 2. Perform Logarithmic Interpolation ---
-  const result = [];
-  const logStart = Math.log10(start);
-  const logStop = Math.log10(stop);
-
-  // The number of intervals is one less than the number of points.
-  const step = (logStop - logStart) / (numPoints - 1);
-
-  for (let i = 0; i < numPoints; i++) {
-    // Calculate the intermediate point on the logarithmic scale.
-    const logPoint = logStart + i * step;
-
-    // Convert the point back to the original linear scale.
-    const value = Math.pow(10, logPoint);
-
-    // Round the value to the nearest multiple of 4 and add it to the array.
-    result.push(roundToNearestMultipleOf4(value));
-  }
-
-  return result;
-}
-
 export function formatWGSL(wgslCode) {
   const lines = wgslCode.split("\n");
   const indent = "  ";

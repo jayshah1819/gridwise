@@ -1,5 +1,4 @@
 <header class="site-header" role="banner">
-
   <div class="wrapper">
     {%- assign default_paths = site.pages | map: "path" -%}
     {%- assign page_paths = site.header_pages | default: default_paths -%}
@@ -23,234 +22,83 @@
             <a class="page-link" href="{{ my_page.url | relative_url }}">{{ my_page.title | escape }}</a>
             {%- endif -%}
           {%- endfor -%}
-          
-          <!-- Interactive Example Button -->
-          <a href="javascript:void(0)" onclick="launchExample()" class="example-button-header">Try Live Example</a>
+          <a class="button" href="javascript:void(0)" onclick="launchExample()">Try Interactive Example</a>
         </div>
       </nav>
     {%- endif -%}
   </div>
-
 </header>
 
 <style>
-.example-button-header {
-  border: 1px solid black;
-  padding: 2px 4px;
-  text-decoration: none;
-  color: black;
-  font-size: 11px;
+.button {
+  display: inline-block;
+  padding: 5px 10px;
+  border: 1px solid #4f4f4f;
+  border-radius: 4px;
+  transition: all 0.2s ease-in;
+  position: relative;
+  overflow: hidden;
+  font-size: 16px;
   cursor: pointer;
+  color: black;
+  z-index: 1;
+  text-decoration: none;
+  line-height: 1.5;
+  vertical-align: middle;
+  margin-top: 0;
+}
+
+.button:before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%) scaleY(1) scaleX(1.25);
+  top: 100%;
+  width: 140%;
+  height: 180%;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+  display: block;
+  transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+  z-index: -1;
+}
+
+.button:after {
+  content: "";
+  position: absolute;
+  left: 55%;
+  transform: translateX(-50%) scaleY(1) scaleX(1.45);
+  top: 180%;
+  width: 160%;
+  height: 190%;
+  background-color: #39bda7;
+  border-radius: 50%;
+  display: block;
+  transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+  z-index: -1;
+}
+
+.button:hover {
+  color: #ffffff;
+  border: 1px solid #39bda7;
+  text-decoration: none;
+}
+
+.button:hover:before {
+  top: -35%;
+  background-color: #39bda7;
+  transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+}
+
+.button:hover:after {
+  top: -45%;
+  background-color: #39bda7;
+  transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
 }
 </style>
 
 <script>
 function launchExample() {
-  // Use jsDelivr CDN to serve files from GitHub repo
-  window.open('https://cdn.jsdelivr.net/gh/jayshah1819/gridwise@jekyll-docs-final/examples/scan_sort_pane_example.html', '_blank');
+  window.open('https://gridwise-webgpu.github.io/gridwise/examples/scan_sort_pane_example.html', '_blank');
 }
 </script>
-
-<style>
-.example-button-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-  font-weight: 500;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.example-button-header:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-  color: white;
-  text-decoration: none;
-}
-
-@media (max-width: 768px) {
-  .example-button-header {
-    font-size: 12px;
-    padding: 6px 12px;
-  }
-}
-</style>
-
-<style>
-.example-button-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-  font-weight: 500;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.example-button-header:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-  color: white;
-  text-decoration: none;
-}
-
-@media (max-width: 768px) {
-  .example-button-header {
-    font-size: 12px;
-    padding: 6px 12px;
-  }
-}
-</style>
-
-<style>
-.example-button-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-left: 10px;
-  font-weight: 500;
-}
-
-.example-button-header:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-}
-
-.example-button-header:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.example-modal {
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.5);
-}
-
-.example-modal-content {
-  background-color: #fefefe;
-  margin: 10% auto;
-  padding: 30px;
-  border-radius: 10px;
-  width: 80%;
-  max-width: 600px;
-  position: relative;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-.close-modal {
-  color: #aaa;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-  position: absolute;
-  right: 15px;
-  top: 10px;
-  cursor: pointer;
-}
-
-.close-modal:hover {
-  color: #000;
-}
-
-.status-message-header {
-  margin: 20px 0;
-  min-height: 20px;
-}
-
-.command-info-header {
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 20px;
-  text-align: left;
-}
-
-.command-box {
-  background: #2d3748;
-  color: #e2e8f0;
-  padding: 12px;
-  border-radius: 6px;
-  margin: 10px 0;
-  font-family: 'Monaco', 'Consolas', monospace;
-  font-size: 14px;
-  position: relative;
-  overflow-x: auto;
-}
-
-.copy-btn {
-  background: #4a5568;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  margin-left: 10px;
-  transition: background 0.2s;
-}
-
-.copy-btn:hover {
-  background: #2d3748;
-}
-
-.launch-link {
-  display: inline-block;
-  background: #10b981;
-  color: white;
-  padding: 12px 24px;
-  text-decoration: none;
-  border-radius: 6px;
-  margin-top: 10px;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.launch-link:hover {
-  background: #059669;
-  transform: translateY(-1px);
-  text-decoration: none;
-  color: white;
-}
-
-.error-message {
-  color: #e53e3e;
-  background: #fed7d7;
-  padding: 15px;
-  border-radius: 6px;
-  border-left: 4px solid #e53e3e;
-}
-
-@media (max-width: 768px) {
-  .example-button-header {
-    font-size: 12px;
-    padding: 6px 12px;
-  }
-  
-  .example-modal-content {
-    width: 95%;
-    margin: 5% auto;
-    padding: 20px;
-  }
-}
-</style>

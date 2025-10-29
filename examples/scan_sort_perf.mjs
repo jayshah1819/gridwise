@@ -196,6 +196,7 @@ async function buildAndRun() {
                 Math.floor(Math.random() * Math.pow(2, 28));
               break;
           }
+          break;
         case "sort_pairs":
           switch (params.datatype) {
             case "u32":
@@ -225,6 +226,7 @@ async function buildAndRun() {
           datatype: params.datatype,
           direction: params.direction,
           copyOutputToTemp: true,
+          inputLength: inputLength,
         });
         break;
       case "sort_pairs":
@@ -234,6 +236,7 @@ async function buildAndRun() {
           direction: params.direction,
           copyOutputToTemp: true,
           type: "keyvalue",
+          inputLength: inputLength,
         });
         break;
       default:
@@ -425,10 +428,10 @@ async function buildAndRun() {
     mappableMemdestBuffer.unmap();
 
     /*Read values back to cpu(only for sort_pairs)*/
-
+    let payloadDest;
     if (params.primitive == "sort_pairs") {
       await mappablePayloadDestBuffer.mapAsync(GPUMapMode.READ);
-      const payloadDest = new (datatypeToTypedArray(params.datatype))(
+      payloadDest = new (datatypeToTypedArray(params.datatype))(
         mappablePayloadDestBuffer.getMappedRange().slice()
       );
       mappablePayloadDestBuffer.unmap();
@@ -468,12 +471,12 @@ async function buildAndRun() {
           break;
       }
       if (errorstr === "") {
-        returnStr += `Validation passed (input length: ${inputLength})<br />`;
+        returnStr += `Validation passed (input length: ${inputLength})<br/ >`;
       } else {
-        returnStr += `Validation failed (input length: ${inputLength})<br />${errorstr}<br />`;
+        returnStr += `Validation failed (input length: ${inputLength})<br/ >${errorstr}<br/ >`;
       }
     } else {
-      returnStr += `Validation not performed (input length: ${inputLength})<br />`;
+      returnStr += `Validation not performed (input length: ${inputLength})<br/ >`;
     }
   } /* end loop over input lengths */
   plotResults(results);

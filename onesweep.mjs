@@ -1056,12 +1056,12 @@ export class OneSweepSort extends BaseSort {
       ${
         this.type === "keyvalue"
           ? /* WGSL */ `
-      let digits = array<u32, KEYS_PER_THREAD>(); // this could be u8 if supported
+      var digits = array<u32, KEYS_PER_THREAD>(); // this could be u8 if supported
       /* TODO: "I save the key's digit, not the global offset. I was trying to save on
        * registers---u8 vs u32---but given that the minimal addressable memory size for
        * registers is u32, it probably doesn't save anything over simply saving the
        * global scatter location." */
-      let values = array<u32, KEYS_PER_THREAD>();`
+      var values = array<u32, KEYS_PER_THREAD>();`
           : ""
       }
 

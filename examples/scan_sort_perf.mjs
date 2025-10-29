@@ -333,15 +333,15 @@ async function buildAndRun() {
         await primitive.execute({
           keysInOut: memsrcBuffer,
           keysTemp: memdestBuffer,
-          valuesInOut: payLoadsrcBuffer,
-          valuesTemp: payloadDestBuffer,
+          payloadInOut: payLoadsrcBuffer,
+          payloadTemp: payloadDestBuffer,
         });
         /*call trials times*/
         await primitive.execute({
           keysInOut: memsrcBuffer,
           keysTemp: memdestBuffer,
-          valuesInOut: payLoadsrcBuffer,
-          valuesTemp: payloadDestBuffer,
+          payloadInOut: payLoadsrcBuffer,
+          payloadTemp: payloadDestBuffer,
           ...primitiveOptions,
         })
         break;

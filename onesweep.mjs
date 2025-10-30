@@ -1437,34 +1437,38 @@ export class OneSweepSort extends BaseSort {
           values
         );
       }
-
-      /* Array.from converts from typed array, because map on
-       * typed array ONLY returns the same typed array */
-      const combined = Array.from(keys).map((key, index) => ({
-        key,
-        value: values[index],
-      }));
-
-      switch (direction) {
-        case "descending":
-          combined.sort((a, b) => {
-            if (a.key < b.key) return 1;
-            if (a.key > b.key) return -1;
-            return 0;
-          });
-          break;
-        default:
-        case "ascending":
-          combined.sort((a, b) => {
-            if (a.key < b.key) return -1;
-            if (a.key > b.key) return 1;
-            return 0;
-          });
-          break;
+      /*build index*/
+      const indices = new Uint32Array(keys.length);
+      for (let i = 0; i < indices.length; i++) {
+        indices[i] = i;
       }
 
-      const sortedKeys = combined.map((item) => item.key);
-      const sortedValues = combined.map((item) => item.value);
+      /*compare keys at 2 indices */
+      const compareFn = direction === "descending"
+        ? (idxA, idxB) => {
+          const a = keys[idxA];
+          const b = keys[idxB];
+          if (a < b) return 1;
+          if (a > b) return -1;
+          return 0;
+        }
+        : (idxA, idxB) => {
+          const a = keys[idxA];
+          const b = keys[idxB];
+          if (a < b) return -1;
+          if (a > b) return 1;
+          return 0;
+        };
+      indices.sort(compareFn);
+
+      const sortedKeys = new keys.constructor(keys.length);
+      const sortedValues = new values.constructor(values.length);
+
+      for (let i = 0; i < indices.length; i++) {
+        const srcIdx = indices[i];
+        sortedKeys[i] = keys[srcIdx];
+        sortedValues[i] = values[srcIdx];
+      }
 
       return { keys: sortedKeys, values: sortedValues };
     }

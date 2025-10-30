@@ -20,6 +20,8 @@ const device = await adapter?.requestDevice({
   requiredLimits: {
     /* this larger-than-default is only necessary for sort */
     maxComputeWorkgroupStorageSize: 32768,
+    maxStorageBufferBindingSize: 2147483648,
+    maxBufferSize: 2147483648,
   },
   requiredFeatures: [
     ...(hasTimestampQuery ? ["timestamp-query"] : []),
@@ -50,7 +52,7 @@ const params = {
   binop: "add",
   direction: "ascending",
   inputLengthStart: 2 ** 20,
-  inputLengthEnd: 2 ** 22,
+  inputLengthEnd: 2 ** 28,
   inputCount: 3,
   trials: 5,
 };

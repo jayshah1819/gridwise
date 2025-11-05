@@ -190,7 +190,7 @@ export class WGHistogram extends BaseHistogram {
         super(args);
     }
     finalizeRuntimeParameters() {
-        /* tuneble parameters*/
+        /* tunable parameters*/
         this.workgroupSize = this.workgroupSize ?? 256;
         this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 256;
 
@@ -227,14 +227,14 @@ export class WGHistogram extends BaseHistogram {
         @builtin(local_invocation_id)localId:vec3<u32>;
         @builtin(workgroup_id)wg_id:vec3<u32>;
 
-        let gwIndex:u32 =global_id..x;
-        let localIndex:u32=local_id.x;
+        let gwIndex:u32 =globalId.x;
+        let localIndex:u32=localId.x;
         let wgIndex:u32=wg_id.x;
 
         //zero private histograms
         var i:u32=localIndex;
         let WGS: u32=${this.workgroupSize}u;
-        let NB:u32=unigorm.numsBins;
+        let NB:u32=uniforms.numBins;
 
         loop{
             if(i>=NB){break;}
@@ -243,11 +243,8 @@ export class WGHistogram extends BaseHistogram {
         }
         workgroupBarrier();
 
-
-
-    )
-// Each thread processes a strided subset of input elements:
-    var idx: u32 = gwIndex;
+        // Each thread processes a strided subset of input elements:
+        var idx: u32 = gwIndex;
     let inputLen: u32 = uniforms.inputLength;
     while (idx < inputLen) {
       // read input value
@@ -281,10 +278,109 @@ export class WGHistogram extends BaseHistogram {
       }
       b = b + WGS;
     }
-
-
-    
+    }
     `;
-
     }
 }
+
+export class HierarchicalHistogram extends BaseHistogram {
+    constructor(args) {
+        super(args);
+    }
+    finalizeRuntimeParameters() {
+        this.workgroupSize = this.workgroupSize ?? 256;
+        this.numThreadsPerWorkgroup = arrayProd(this.workgroupSize);
+        this.workgroupCount = Math.ceil(this.getBuffer("inputBuffer").size / (this.numThreadsPerWorkgroup * datatypeToBytes(this.datatype)));
+        this.numPartials = this.workgroupCount;
+    }
+    // Kernel 1: Each workgroup builds its own local histogram
+    histogramPerWorkgroupKernel = () => {
+        return /*wgsl*/`
+        enable subgroups;
+        
+        //input buffer
+        @group(0) @binding(0) var<storage, read>inputBuffer:array<${this.datatype}>;
+        //partial bufferr
+        @group(0) @binding(1) var<storage,read_write>partialBuffer:array<atomic<u32>>;
+
+        struct histogramUniforms{
+            numsBins:u32,
+            minValue:f32,
+            maxValue:f32,
+            inputLength:u32,
+        }
+        @group(0) @binding(2) var<uniform>uniforms:histogramUniforms;
+
+        ${this.fnDeclarations.commonDefinitions}
+
+        //private workgroup 
+            // Private workgroup-local histogram
+        var<workgroup> privateHistogram: array<atomic<u32>, ${this.numBins}>;
+        @compute @workgroup_size(${this.workgroupSize})
+        fn histogramPerWorkgroupKernel(
+            @builtin(global_invocation_id) globalId: vec3<u32>,
+            @builtin(local_invocation_id) localId: vec3<u32>,
+            @builtin(workgroup_id) wgId: vec3<u32>
+        ) {
+            let gwIndex: u32 = globalId.x;
+            let localIndex: u32 = localId.x;
+            let wgIndex: u32 = wgId.x;
+            
+            let WGS: u32 = ${this.workgroupSize}u;
+            let NB: u32 = uniforms.numBins;
+            
+            // Zero out private histogram
+            var i: u32 = localIndex;
+            loop {
+                if (i >= NB) { break; }
+                atomicStore(&privateHistogram[i], 0u);
+                i = i + WGS;
+            }
+            workgroupBarrier();
+            
+            // Each thread processes elements with grid-stride loop
+            var idx:u32 = gwIndex;
+            let inputLen: u32 = uniforms.inputLength;
+            let totalThreads: u32 = ${this.workgroupCount}u * WGS;
+            
+            while (idx < inputLen) {
+                //Read input value
+                let value: ${this.datatype} = inputBuffer[idx];
+                //Compute bin index (map to 0..numBins-1)
+                let normalized: f32 = (f32(value) - uniforms.minValue) / 
+                                      (uniforms.maxValue - uniforms.minValue);
+                var binIndex: i32 = i32(floor(normalized * f32(NB)));
+                
+                //Clamp to valid bin range
+                binIndex = clamp(binIndex, 0, i32(NB) - 1);
+                
+                // Increment private histogram
+                atomicAdd(&privateHistogram[u32(binIndex)], 1u);
+                // Grid-stride loop
+                idx = idx + totalThreads;
+            }
+            
+            workgroupBarrier();
+            
+            // Write local histogram to partials buffer
+            // Each workgroup writes to partials[wgIndex * numBins : (wgIndex+1) * numBins]
+            var b: u32 = localIndex;
+            while (b < NB) {
+                let partialCount: u32 = atomicLoad(&privateHistogram[b]);
+                let partialIndex: u32 = wgIndex * NB + b;
+                atomicStore(&partials[partialIndex], partialCount);
+                b = b + WGS;
+            }
+        }`;
+    };
+}
+
+
+
+
+
+
+
+
+
+

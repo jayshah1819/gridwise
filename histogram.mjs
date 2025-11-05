@@ -179,6 +179,12 @@ const histogramWGSizeBinOpPlot = {
     caption: "Lines are workgroup size",
 };
 
+//https://developer.nvidia.com/blog/gpu-pro-tip-fast-histograms-using-shared-atomics-maxwell/
+
+/*Step 1: clear private bins (like setting to 0).
+Step 2: each thread counts elements into its workgroup’s private histogram. 
+Step 3: merge your private histogram into the final global result. */
+
 export class WGHistogram extends BaseHistogram {
     constructor(args) {
         super(args);
@@ -211,7 +217,7 @@ export class WGHistogram extends BaseHistogram {
 
     ${BasePrimitive.fnDeclarations.commondefinitions};
 
-    /*privatized workgroup*/
+    //privatized workgroup
     var<workgroup>privateHistogram:array<atomic<u32>,$this.numBins>;
 
     @compute @workgroup_size(${this.workgroupSize})
@@ -221,11 +227,60 @@ export class WGHistogram extends BaseHistogram {
         @builtin(local_invocation_id)localId:vec3<u32>;
         @builtin(workgroup_id)wg_id:vec3<u32>;
 
-        let g
+        let gwIndex:u32 =global_id..x;
+        let localIndex:u32=local_id.x;
+        let wgIndex:u32=wg_id.x;
+
+        //zero private histograms
+        var i:u32=localIndex;
+        let WGS: u32=${this.workgroupSize}u;
+        let NB:u32=unigorm.numsBins;
+
+        loop{
+            if(i>=NB){break;}
+            atomicExchange(&privateHistogram[i],0u);
+            i=i+WGS;
+        }
+        workgroupBarrier();
+
 
 
     )
+// Each thread processes a strided subset of input elements:
+    var idx: u32 = gwIndex;
+    let inputLen: u32 = uniforms.inputLength;
+    while (idx < inputLen) {
+      // read input value
+      let value: ${this.datatype} = inputBuffer[idx];
 
+      // compute bin index (map to 0..numBins-1)
+      //to get range between [1,0]
+      let normalized: f32 = (f32(value) - uniforms.minValue) / (uniforms.maxValue - uniforms.minValue);
+      var binIndex: i32 = i32(floor(normalized * f32(NB)));
+
+      //clampping to be in range of bins
+      if (binIndex < 0) { binIndex = 0; }
+      if (binIndex >= i32(NB)) { binIndex = i32(NB) - 1; }
+
+      // increment private histogram
+      atomicAdd(&privateHistogram[u32(binIndex)], 1u);
+
+    // stride by total threads (workgroups * WG size)
+      idx = idx + ${this.workgroupCount}u * WGS; 
+    }
+
+    workgroupBarrier();
+
+    // Now each thread will merge a subset of bins into the global outputBuffer
+    // Partition bins across threads to parallelize the merge
+    var b: u32 = localIndex;
+    while (b < NB) {
+      let partialCount: u32 = atomicLoad(&privateHistogram[b]); // read local atomic
+      if (partialCount > 0u) {
+        atomicAdd(&outputBuffer[b], partialCount);
+      }
+      b = b + WGS;
+    }
 
 
     

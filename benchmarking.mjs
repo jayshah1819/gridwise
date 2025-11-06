@@ -30,6 +30,7 @@ if (typeof process !== "undefined" && process.release.name === "node") {
   saveJSON = urlParams.get("saveJSON"); // string or undefined
   if (saveJSON === "false") {
     saveJSON = false;
+
   }
   saveSVG = urlParams.get("saveSVG"); // string or undefined
   if (saveSVG === "false") {
@@ -45,6 +46,10 @@ if (typeof process !== "undefined" && process.release.name === "node") {
 // tests
 // import { NoAtomicPKReduceTestSuite } from "./reduce.mjs";
 // import { HierarchicalScanTestSuite } from "./scan.mjs";
+import {
+  WGHistogramTestSuite,
+  HierarchicalHistogramTestSuite,
+} from "./histogram.mjs";
 import {
   // DLDFScanTestSuite,
   // DLDFReduceTestSuite,
@@ -136,6 +141,9 @@ async function main(navigator) {
   // let testSuites = [DLDFScanMiniSuite];
   // let testSuites = [DLDFScanAccuracyRegressionSuite];
   let testSuites = [DLDFPerfSuite];
+  // let testSuites = [WGHistogramTestSuite];
+  // let testSuites = [WGHistogramTestSuite, HierarchicalHistogramTestSuite];
+  // let testSuites = [HierarchicalHistogramTestSuite];
   // let testSuites = [DLDFDottedCachePerfTestSuite];
   // let testSuites = [DLDFDottedCachePerf2TestSuite];
   // let testSuites = [DLDFSingletonWithTimingSuite];
@@ -236,6 +244,30 @@ async function main(navigator) {
           );
           testOutputBuffer = testInputBuffer; /* two names for same buffer */
         } else {
+          // Determine output buffer size and datatype
+          let outputLength, outputDatatype;
+          
+          if (testSuite.category === "histogram") {
+            // Histogram output is ALWAYS u32 counts, size = numBins
+            outputLength = primitive.numBins;
+            outputDatatype = "u32";
+          } else if ("type" in primitive && primitive.type === "reduce") {
+            // Reduce outputs a single value
+            outputLength = 1;
+            outputDatatype = primitive.datatype;
+          } else if (
+            testSuite.category === "subgroups" &&
+            testSuite.testSuite === "subgroupBallot"
+          ) {
+            // Special case for subgroupBallot
+            outputLength = primitive.inputLength;
+            outputDatatype = "vec4u";
+          } else {
+            // Default: same as input
+            outputLength = primitive.inputLength;
+            outputDatatype = primitive.datatype;
+          }
+          
           testOutputBuffer = new Buffer({
             device,
             datatype:
@@ -245,11 +277,17 @@ async function main(navigator) {
                 : primitive.datatype,
             length:
               "type" in primitive && primitive.type === "reduce"
-                ? 1
                 : primitive.inputLength,
+            datatype: outputDatatype,
+            length: outputLength,
             label: "outputBuffer",
             createGPUBuffer: true,
             createMappableGPUBuffer: true,
+            // Histogram needs CPU buffer for validation and GPU must be zeroed (atomics requirement)
+            ...(testSuite.category === "histogram" && {
+              createCPUBuffer: true,  // TypedArray initialized to zeros by default
+              initializeGPUBuffer: true,  // Copy zeros from CPU to GPU
+            }),
           });
           if (
             testSuite.category === "scan" &&
@@ -500,12 +538,20 @@ async function main(navigator) {
       const div = document.querySelector("#plot");
       div.append(plotted);
       if (saveSVG) {
-        // eslint-disable-next-line no-undef
-        svgExport.downloadSvg(
-          div.lastChild,
-          `${testSuite.testsuite}-${testSuite.category}`, // chart title: file name of exported image
-          {}
-        );
+        try {
+          // eslint-disable-next-line no-undef
+          if (typeof svgExport !== 'undefined') {
+            svgExport.downloadSvg(
+              div.lastChild,
+              `${testSuite.testsuite}-${testSuite.category}`, // chart title: file name of exported image
+              {}
+            );
+          } else {
+            console.warn("SVG export requested but svgExport library not loaded");
+          }
+        } catch (error) {
+          console.warn("SVG export failed:", error.message);
+        }
       }
       div.append(document.createElement("hr"));
     }

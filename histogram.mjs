@@ -22,12 +22,13 @@ export class BaseHistogram extends BasePrimitive {
             }
         }
 
-        // Assign binop (default to addition for counting)
+        // Histogram always outputs u32 (counts), regardless of input datatype
+        // The binop should always be u32 addition
         this.binop = args.binop ?? new BinOpAddU32();
 
-        if (this.datatype != this.binop.datatype) {
+        if (this.binop.datatype !== "u32") {
             throw new Error(
-                `${this.constructor.name}: datatype (${this.datatype}) is incompatible with binop datatype (${this.binop.datatype}).`
+                `${this.constructor.name}: binop datatype must be u32 (histogram output is always u32), but got ${this.binop.datatype}.`
             );
         }
         /*default bin range*/
@@ -59,15 +60,14 @@ export class BaseHistogram extends BasePrimitive {
         const memdest = args.outputBuffer ?? this.getBuffer("outputBuffer").cpuBuffer;
         let referenceOutput;
         try {
-            referenceOutput = new (datatypeToTypedArray(this.datatype))(
-                memdest.length
-            );
+            // Histogram output is ALWAYS u32 (counts), not the input datatype
+            referenceOutput = new Uint32Array(this.numBins);
         } catch (error) {
-            console.error(error, "Tried to allocate array of length", memdest.length);
+            console.error(error, "Tried to allocate array of length", this.numBins);
         }
-        /*Intialize histogram bins<--------------------------check this again */
+        /*Intialize histogram bins*/
         for (let bin = 0; bin < this.numBins; bin++) {
-            referenceOutput[bin] = this.binop.identity;
+            referenceOutput[bin] = 0;
         }
         //build reference for histogram
         for (let i = 0; i < memsrc.length; i++) {
@@ -78,7 +78,7 @@ export class BaseHistogram extends BasePrimitive {
             let binIndex = Math.floor(normalized * this.numBins);
             //clamp
             binIndex = Math.max(0, Math.min(binIndex, this.numBins - 1));
-            referenceOutput[binIndex] = this.binop.op(referenceOutput[binIndex], 1);
+            referenceOutput[binIndex] = referenceOutput[binIndex] + 1;
         }
         function validates(args) {
             return args.cpu == args.gpu;
@@ -147,13 +147,12 @@ export class BaseHistogram extends BasePrimitive {
     };
 }
 
-export const histogramWGCountPlot = {
+export const histogramBandwidthPlot = {
     x: { field: "inputBytes", label: "Input array size (B)" },
     y: { field: "bandwidth", label: "Achieved bandwidth (GB/s)" },
-    fx: { field: "timing" },
-    stroke: { field: "workgroupCount" },
-    test_br: "gpuinfo.description",
-    caption: "Lines are workgroup count",
+    stroke: { field: "timing" },  // Lines colored by GPU vs CPU
+    text_br: "gpuinfo.description",
+    caption: "Histogram Bandwidth (GPU vs CPU)",
 };
 
 /* needs to be a function if we do string interpolation */
@@ -176,7 +175,7 @@ const histogramWGSizeBinOpPlot = {
     y: { field: "bandwidth", label: "Achieved bandwidth (GB/s)" },
     fy: { field: "binop" },
     stroke: { field: "workgroupSize" },
-    test_br: "gpuinfo.description",
+    text_br: "gpuinfo.description",
     caption: "Lines are workgroup size",
 };
 
@@ -198,6 +197,26 @@ export class WGHistogram extends BaseHistogram {
         /*Compute settings based on tunable parameters */
         this.workgroupCount = Math.min(Math.ceil(this.getBuffer("inputBuffer").size / this.workgroupSize), this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
+        
+        // CREATE THE UNIFORM DATA
+        const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
+        this.histogramUniforms = new Uint32Array([
+            inputLength,
+            this.numBins,
+            this.workgroupCount, // Add workgroup count
+            0 // padding for alignment
+        ]);
+        const histogramUniformsFloat = new Float32Array([
+            this.minValue,
+            this.maxValue
+        ]);
+        
+        // Combine into single buffer
+        this.histogramUniformsBuffer = new Uint8Array(
+            this.histogramUniforms.byteLength + histogramUniformsFloat.byteLength
+        );
+        this.histogramUniformsBuffer.set(new Uint8Array(this.histogramUniforms.buffer), 0);
+        this.histogramUniformsBuffer.set(new Uint8Array(histogramUniformsFloat.buffer), this.histogramUniforms.byteLength);
 
     }
     histogramKernelDefinition = () => {
@@ -207,18 +226,18 @@ export class WGHistogram extends BaseHistogram {
     //output buffer
     @group(0) @binding(1) var<storage,read_write>outputBuffer:array<atomic<u32>>;
     
-    struct histogramUniforms{
+    struct HistogramUniforms{
+        inputLength:u32,
         numBins:u32,
+        numWorkgroups:u32,
+        padding0:u32,
         minValue:f32,
         maxValue:f32,
-        inputLength:u32,
     };
-    @group(0) @binding(2) var<uniform> uniforms:histogramUniforms;
-
-    ${BasePrimitive.fnDeclarations.commondefinitions};
+    @group(0) @binding(2) var<uniform> uniforms:HistogramUniforms;
 
     //privatized workgroup
-    var<workgroup>privateHistogram:array<atomic<u32>,$this.numBins>;
+    var<workgroup>privateHistogram:array<atomic<u32>,${this.numBins}>;
 
     @compute @workgroup_size(${this.workgroupSize})
     fn main(
@@ -263,7 +282,7 @@ export class WGHistogram extends BaseHistogram {
       atomicAdd(&privateHistogram[u32(binIndex)], 1u);
 
     // stride by total threads (workgroups * WG size)
-      idx = idx + ${this.workgroupCount}u * WGS; 
+      idx = idx + uniforms.numWorkgroups * WGS; 
     }
 
     workgroupBarrier();
@@ -286,6 +305,13 @@ export class WGHistogram extends BaseHistogram {
         this.finalizeRuntimeParameters();
 
         return [
+            new AllocateBuffer({
+                label: "histogramUniforms",
+                size: this.histogramUniformsBuffer.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                populateWith: this.histogramUniformsBuffer,
+            }),
+            
             new Kernel({
                 kernel: this.histogramKernelDefinition,
                 bufferTypes: [["read-only-storage", "storage", "uniform"]],
@@ -307,29 +333,57 @@ export class HierarchicalHistogram extends BaseHistogram {
     }
     finalizeRuntimeParameters() {
         this.workgroupSize = this.workgroupSize ?? 256;
+        this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 256;
         this.numThreadsPerWorkgroup = arrayProd(this.workgroupSize);
-        this.workgroupCount = Math.ceil(this.getBuffer("inputBuffer").size / (this.numThreadsPerWorkgroup * datatypeToBytes(this.datatype)));
+        
+        // Calculate workgroup count with hardware limit
+        const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
+        const idealWorkgroupCount = Math.ceil(inputLength / this.numThreadsPerWorkgroup);
+        this.workgroupCount = Math.min(idealWorkgroupCount, this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
+        
+        // CREATE THE HISTOGRAM UNIFORM DATA
+        this.histogramUniforms = new Uint32Array([
+            inputLength,
+            this.numBins,
+            this.workgroupCount, // Add workgroup count to uniforms
+            0 // padding for alignment
+        ]);
+        const histogramUniformsFloat = new Float32Array([
+            this.minValue,
+            this.maxValue
+        ]);
+        
+        // Combine into single buffer
+        this.histogramUniformsBuffer = new Uint8Array(
+            this.histogramUniforms.byteLength + histogramUniformsFloat.byteLength
+        );
+        this.histogramUniformsBuffer.set(new Uint8Array(this.histogramUniforms.buffer), 0);
+        this.histogramUniformsBuffer.set(new Uint8Array(histogramUniformsFloat.buffer), this.histogramUniforms.byteLength);
+        
+        // CREATE ACCUMULATE UNIFORMS
+        this.accumulateUniforms = new Uint32Array([
+            this.numBins,
+            this.workgroupCount
+        ]);
     }
     // Kernel 1: Each workgroup builds its own local histogram
     histogramPerWorkgroupKernel = () => {
         return /*wgsl*/`
-        enable subgroups;
-        
         //input buffer
         @group(0) @binding(0) var<storage, read>inputBuffer:array<${this.datatype}>;
         //partial bufferr
         @group(0) @binding(1) var<storage,read_write>partials:array<u32>;
 
-        struct histogramUniforms{
+        struct HistogramUniforms{
+            inputLength:u32,
             numBins:u32,
+            numWorkgroups:u32,
+            padding0:u32,
             minValue:f32,
             maxValue:f32,
-            inputLength:u32,
         }
-        @group(0) @binding(2) var<uniform>uniforms:histogramUniforms;
-
-        ${BasePrimitive.fnDeclarations.commondefinitions}
+        @group(0) @binding(2) var<uniform>uniforms:HistogramUniforms;
 
         //private workgroup 
             // Private workgroup-local histogram
@@ -359,7 +413,7 @@ export class HierarchicalHistogram extends BaseHistogram {
             // Each thread processes elements with grid-stride loop
             var idx:u32 = gwIndex;
             let inputLen: u32 = uniforms.inputLength;
-            let totalThreads: u32 = ${this.workgroupCount}u * WGS;
+            let totalThreads: u32 = WGS * uniforms.numWorkgroups;
             
             while (idx < inputLen) {
                 //Read input value
@@ -406,10 +460,6 @@ export class HierarchicalHistogram extends BaseHistogram {
         }
         @group(0) @binding(2) var<uniform> uniforms: AccumulateUniforms;
         
-
-
-        ${BasePrimitive.fnDeclarations.commondefinitions}
-        
         @compute @workgroup_size(${this.workgroupSize})
         fn accumulateHistogramsKernel(
             @builtin(global_invocation_id) globalId: vec3<u32>
@@ -444,6 +494,22 @@ export class HierarchicalHistogram extends BaseHistogram {
                 label: "partials",
                 size: this.numBins * this.workgroupCount * 4, // 4 bytes per u32
             }),
+            
+            // Allocate and populate histogram uniforms
+            new AllocateBuffer({
+                label: "histogramUniforms",
+                size: this.histogramUniformsBuffer.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                populateWith: this.histogramUniformsBuffer,
+            }),
+            
+            // Allocate and populate accumulate uniforms
+            new AllocateBuffer({
+                label: "accumulateUniforms",
+                size: this.accumulateUniforms.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+                populateWith: this.accumulateUniforms,
+            }),
 
             // Kernel 1: Each workgroup builds local histogram
             new Kernel({
@@ -475,10 +541,10 @@ export class HierarchicalHistogram extends BaseHistogram {
 }
 
 const HistogramParams = {
-    inputLength: [2 ** 10, 2 ** 15, 2 ** 20],
-    numBins: [16, 64, 256],
-    workgroupSize: [64, 128, 256],
-    maxGSLWorkgroupCount: [32, 64, 128],
+    inputLength: range(8, 24).map((i) => 2 ** i),  // 256 to 16M elements, like DLDF scan
+    numBins: [64, 256],
+    workgroupSize: [256],  // Single workgroup size like scan
+    maxGSLWorkgroupCount: [256],  // Single workgroup count
 };
 
 const HistogramParamsSingleton = {
@@ -492,35 +558,40 @@ export const WGHistogramTestSuite = new BaseTestSuite({
     category: "histogram",
     testSuite: "workgroup histogram",
     trials: 10,
-    params: HistogramParamsSingleton,
+    params: HistogramParams,  // Use full parameter sweep
     uniqueRuns: ["inputLength", "numBins", "workgroupSize"],
     primitive: WGHistogram,
     primitiveArgs: {
         datatype: "f32",
-        binop: BinOpAddF32,
-        minValue: 0.0,
-        maxValue: 1.0,
+        binop: BinOpAddU32,  // Histogram output is always u32 (counts)
+        minValue: -1024.0,
+        maxValue: 1024.0,
         gputimestamps: true,
     },
-    plots: [histogramWGCountPlot],
+    plots: [
+        histogramBandwidthPlot
+    ],
 });
 
 export const HierarchicalHistogramTestSuite = new BaseTestSuite({
     category: "histogram",
     testSuite: "hierarchical histogram",
     trials: 10,
-    params: HistogramParamsSingleton,
+    params: HistogramParams,  // Use full parameter sweep
     uniqueRuns: ["inputLength", "numBins"],
     primitive: HierarchicalHistogram,
     primitiveArgs: {
         datatype: "f32",
-        binop: BinOpAddF32,
-        minValue: 0.0,
-        maxValue: 1.0,
+        binop: BinOpAddU32,  // Histogram output is always u32 (counts)
+        minValue: -1024.0,
+        maxValue: 1024.0,
         gputimestamps: true,
     },
-    plots: [histogramWGCountPlot],
+    plots: [
+        histogramBandwidthPlot
+    ],
 });
+
 
 
 

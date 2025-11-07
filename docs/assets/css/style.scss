@@ -107,8 +107,9 @@ body {
 
 /* Ensure footer displays correctly */
 .site-footer {
-    margin-left: 0;
-    width: 100%;
+    margin-left: 280px;
+    /* Same as sidebar width */
+    width: calc(100% - 280px);
     clear: both;
 }
 
@@ -123,10 +124,10 @@ body {
 
 /* Left Sidebar - Fixed to left edge */
 .docs-sidebar {
-    width: 380px;
+    width: 280px;
     flex-shrink: 0;
     background-color: #f8f9fa;
-    padding: 25px 20px 30px 20px;
+    padding: 20px 15px 25px 15px;
     border-right: 1px solid #e1e4e8;
     position: fixed;
     left: 0;
@@ -143,11 +144,11 @@ body {
 
 .docs-sidebar h3 {
     margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
+    margin-bottom: 0.8rem;
+    font-size: 1.2rem;
     color: #333;
     border-bottom: 2px solid #39bda7;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.4rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -169,13 +170,13 @@ body {
 
 .docs-nav a {
     display: block;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 0.8rem;
     color: #555;
     text-decoration: none;
     border-radius: 6px;
     transition: all 0.3s ease;
-    font-size: 1.1rem;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    line-height: 1.4;
     border-left: 3px solid transparent;
 }
 
@@ -184,7 +185,7 @@ body {
     color: #111;
     border-left-color: #39bda7;
     transform: translateX(5px);
-    padding-left: 1.1rem;
+    padding-left: 0.9rem;
 }
 
 .docs-nav a.active {
@@ -248,10 +249,10 @@ body {
 /* Main Content - Centered with left margin for sidebar */
 .docs-content {
     flex: 1;
-    margin-left: 380px;
+    margin-left: 280px;
     /* Same as sidebar width */
-    padding: 40px 100px 40px 100px;
-    max-width: calc(100vw - 380px);
+    padding: 30px 60px 30px 60px;
+    max-width: calc(100vw - 280px);
     width: 100%;
 }
 
@@ -269,49 +270,49 @@ body {
 
 .docs-content .post-content,
 .docs-content .home {
-    font-size: 18px;
-    line-height: 1.8;
+    font-size: 16px;
+    line-height: 1.7;
 }
 
 .docs-content h1 {
-    font-size: 2.75rem;
-    margin-bottom: 1.5rem;
+    font-size: 2.25rem;
+    margin-bottom: 1.2rem;
     color: #111;
     font-weight: 600;
 }
 
 .docs-content h2 {
-    font-size: 2rem;
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.75rem;
+    margin-top: 2rem;
+    margin-bottom: 0.8rem;
     color: #111;
     font-weight: 600;
 }
 
 .docs-content h3 {
-    font-size: 1.5rem;
-    margin-top: 1.75rem;
-    margin-bottom: 0.75rem;
+    font-size: 1.35rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.6rem;
     color: #111;
     font-weight: 600;
 }
 
 .docs-content p {
-    margin-bottom: 1.3rem;
+    margin-bottom: 1.1rem;
 }
 
 .docs-content code {
-    font-size: 0.95em;
-    padding: 0.2em 0.4em;
+    font-size: 0.9em;
+    padding: 0.15em 0.35em;
     background-color: #f6f8fa;
     border-radius: 3px;
 }
 
 .docs-content pre {
-    padding: 18px;
+    padding: 16px;
     overflow: auto;
-    font-size: 15px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.45;
     background-color: #f6f8fa;
     border-radius: 6px;
 }
@@ -319,12 +320,17 @@ body {
 /* Responsive */
 @media (max-width: 1024px) {
     .docs-sidebar {
-        width: 300px;
+        width: 250px;
     }
 
     .docs-content {
-        margin-left: 300px;
-        padding: 30px 50px;
+        margin-left: 250px;
+        padding: 25px 40px;
+    }
+
+    .site-footer {
+        margin-left: 250px;
+        width: calc(100% - 250px);
     }
 }
 
@@ -340,5 +346,10 @@ body {
     .docs-content {
         margin-left: 0;
         padding: 20px;
+    }
+
+    .site-footer {
+        margin-left: 0;
+        width: 100%;
     }
 }

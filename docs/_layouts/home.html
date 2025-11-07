@@ -9,9 +9,9 @@ layout: default
     {%- assign gridwise_pages = site.pages | where: "category", "gridwise" | sort: "order" -%}
     {%- if gridwise_pages.size > 0 -%}
     <ul class="docs-nav">
-      {%- for page in gridwise_pages -%}
+      {%- for p in gridwise_pages -%}
       <li>
-        <a href="{{ page.url | relative_url }}">{{ page.title | escape }}</a>
+        <a href="{{ p.url | relative_url }}" {% if p.url==page.url %}class="active"{% endif %}>{{ p.title | escape }}</a>
       </li>
       {%- endfor -%}
     </ul>
@@ -41,3 +41,40 @@ layout: default
     </div>
   </main>
 </div>
+
+<script>
+  // Save and restore sidebar scroll position
+  (function() {
+    const sidebar = document.querySelector('.docs-sidebar');
+    if (!sidebar) return;
+    
+    // Restore scroll position immediately
+    const savedScrollPos = sessionStorage.getItem('sidebarScrollPos');
+    if (savedScrollPos) {
+      sidebar.scrollTop = parseInt(savedScrollPos);
+    }
+    
+    // Save on scroll
+    let scrollTimer;
+    sidebar.addEventListener('scroll', function() {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function() {
+        sessionStorage.setItem('sidebarScrollPos', sidebar.scrollTop);
+      }, 100);
+    });
+    
+    // Save on link click and restore after navigation
+    sidebar.querySelectorAll('a').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        sessionStorage.setItem('sidebarScrollPos', sidebar.scrollTop);
+      });
+    });
+    
+    // Restore again after a short delay to handle any reflows
+    window.addEventListener('load', function() {
+      if (savedScrollPos) {
+        sidebar.scrollTop = parseInt(savedScrollPos);
+      }
+    });
+  })();
+</script>

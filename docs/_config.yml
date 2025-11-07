@@ -3,7 +3,7 @@ email: jowens@ece.ucdavis.edu
 description: WebGPU compute primitives in JavaScript
 baseurl: "/gridwise"
 url: "https://gridwise-webgpu.github.io"
-github_username: gridwise
+github_username: gridwise-webgpu
 
 markdown: kramdown
 theme: minima

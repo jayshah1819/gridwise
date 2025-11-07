@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>WebGPU Histogram Performance Test</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" />
+</head>
+
+<body>
+  <h1>WebGPU Histogram Performance Test</h1>
+  <p>
+    This example is a self-contained performance test for the histogram primitives.
+    Set your parameters in the pane and click "Start" to run and plot performance data
+    for a WebGPU histogram operation.
+  </p>
+
+  <h2>Parameters:</h2>
+  <ul>
+    <li><strong>Implementation:</strong> Choose between "Workgroup Histogram" (single-pass) or "Hierarchical Histogram"
+      (two-pass)</li>
+    <li><strong>Datatype:</strong> Input data type (f32, i32, or u32)</li>
+    <li><strong>Number of bins:</strong> How many histogram bins to use (16-1024)</li>
+    <li><strong>Min/Max Value:</strong> The range of values to histogram</li>
+    <li><strong>Input Length Start/End:</strong> Range of input array sizes to test</li>
+    <li><strong>Input Count:</strong> How many different input sizes to test (logarithmically spaced)</li>
+    <li><strong>Trials:</strong> Number of times to run each test for averaging</li>
+  </ul>
+
+  <p>
+    The plots will show bandwidth (GB/s) and runtime (nanoseconds) for both GPU and CPU timing methods.
+    GPU timing uses timestamp queries (if available), while CPU timing uses performance.now().
+  </p>
+
+  <div id="webgpu-results"></div>
+  <div id="plot"></div>
+
+  <script src="histogram_perf.mjs" type="module"></script>
+</body>
+
+</html>

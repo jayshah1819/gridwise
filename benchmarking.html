@@ -1,27 +1,29 @@
 <!DOCTYPE html>
 
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Benchmarking Sandbox</title>
-  </head>
 
-  <body>
-    <div id="plot"></div>
-    <script>
-      const isLocalhost =
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1" ||
-        window.location.hostname.startsWith("192.168.") || // Local network
-        window.location.hostname.startsWith("10.") ||      // Private network
-        window.location.hostname.startsWith("172.") ||     // Private network
-        window.location.protocol === "file:";
-      const script = document.createElement("script");
-      script.type = "module";
-      const cacheBust = Date.now(); // Force cache refresh
-      script.src = (isLocalhost ? `/benchmarking_chrome.mjs?v=${cacheBust}` : "https://gridwise-js.github.io/gridwise/benchmarking_chrome.mjs");
-      document.body.appendChild(script);
+<head>
+  <meta charset="utf-8" />
+  <title>Benchmarking Sandbox</title>
+</head>
+
+<body>
+  <div id="plot"></div>
+  <script>
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.startsWith("192.168.") || // Local network
+      window.location.hostname.startsWith("10.") ||      // Private network
+      window.location.hostname.startsWith("172.") ||     // Private network
+      window.location.protocol === "file:";
+    const script = document.createElement("script");
+    script.type = "module";
+    const cacheBust = Date.now(); // Force cache refresh
+    script.src = (isLocalhost ? `/benchmarking_chrome.mjs?v=${cacheBust}` : "https://gridwise-js.github.io/gridwise/benchmarking_chrome.mjs");
+    document.body.appendChild(script);
     // <script src="http://localhost:8000/gridwise/benchmarking_chrome.mjs" type="module"></script>
-    </script>
-  </body>
+  </script>
+</body>
+
 </html>

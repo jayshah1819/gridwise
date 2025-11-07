@@ -20,12 +20,19 @@ if (typeof process !== "undefined" && process.release.name === "node") {
   Plot = await import(
     "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm"
   );
-  /* begin https://github.com/sharonchoong/svg-exportJS */
-  /* svg-exportJS prerequisite: canvg */
-  await import("https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.9/umd.js");
-  /* svg-exportJS plugin */
-  await import("https://sharonchoong.github.io/svg-exportJS/svg-export.min.js");
-  /* end https://github.com/sharonchoong/svg-exportJS */
+
+  /* SVG export - optional, may fail if CORS blocked or running from file:// */
+  try {
+    /* svg-exportJS prerequisite: canvg */
+    await import("https://cdnjs.cloudflare.com/ajax/libs/canvg/3.0.9/umd.js");
+    /* svg-exportJS plugin */
+    await import("https://sharonchoong.github.io/svg-exportJS/svg-export.min.js");
+    console.info("SVG export loaded successfully");
+  } catch (error) {
+    console.warn("SVG export libraries failed to load (this is OK):", error.message);
+    console.info("SVG export will be disabled. To enable: run from http://localhost, not file://");
+  }
+
   const urlParams = new URL(window.location.href).searchParams;
   saveJSON = urlParams.get("saveJSON"); // string or undefined
   if (saveJSON === "false") {
@@ -140,8 +147,8 @@ async function main(navigator) {
   //);
   // let testSuites = [DLDFScanMiniSuite];
   // let testSuites = [DLDFScanAccuracyRegressionSuite];
-  let testSuites = [DLDFPerfSuite];
-  // let testSuites = [WGHistogramTestSuite];
+  // let testSuites = [DLDFPerfSuite];
+  let testSuites = [WGHistogramTestSuite];
   // let testSuites = [WGHistogramTestSuite, HierarchicalHistogramTestSuite];
   // let testSuites = [HierarchicalHistogramTestSuite];
   // let testSuites = [DLDFDottedCachePerfTestSuite];
@@ -244,50 +251,24 @@ async function main(navigator) {
           );
           testOutputBuffer = testInputBuffer; /* two names for same buffer */
         } else {
-          // Determine output buffer size and datatype
-          let outputLength, outputDatatype;
-          
-          if (testSuite.category === "histogram") {
-            // Histogram output is ALWAYS u32 counts, size = numBins
-            outputLength = primitive.numBins;
-            outputDatatype = "u32";
-          } else if ("type" in primitive && primitive.type === "reduce") {
-            // Reduce outputs a single value
-            outputLength = 1;
-            outputDatatype = primitive.datatype;
-          } else if (
-            testSuite.category === "subgroups" &&
-            testSuite.testSuite === "subgroupBallot"
-          ) {
-            // Special case for subgroupBallot
-            outputLength = primitive.inputLength;
-            outputDatatype = "vec4u";
-          } else {
-            // Default: same as input
-            outputLength = primitive.inputLength;
-            outputDatatype = primitive.datatype;
-          }
-          
           testOutputBuffer = new Buffer({
             device,
             datatype:
               testSuite.category === "subgroups" &&
-              testSuite.testSuite === "subgroupBallot"
+                testSuite.testSuite === "subgroupBallot"
                 ? "vec4u"
+                : testSuite.category === "histogram"
+                ? "u32"
                 : primitive.datatype,
             length:
               "type" in primitive && primitive.type === "reduce"
+                ? 1
+                : testSuite.category === "histogram"
+                ? primitive.numBins
                 : primitive.inputLength,
-            datatype: outputDatatype,
-            length: outputLength,
             label: "outputBuffer",
             createGPUBuffer: true,
             createMappableGPUBuffer: true,
-            // Histogram needs CPU buffer for validation and GPU must be zeroed (atomics requirement)
-            ...(testSuite.category === "histogram" && {
-              createCPUBuffer: true,  // TypedArray initialized to zeros by default
-              initializeGPUBuffer: true,  // Copy zeros from CPU to GPU
-            }),
           });
           if (
             testSuite.category === "scan" &&
@@ -447,24 +428,29 @@ async function main(navigator) {
       }
       if (validations.done > 0) {
         console.info(
-          `${validations.done} validation${
-            validations.done === 1 ? "" : "s"
-          } complete${validations?.tested ? ` (${validations.tested})` : ""}, ${
-            validations.errors
+          `${validations.done} validation${validations.done === 1 ? "" : "s"
+          } complete${validations?.tested ? ` (${validations.tested})` : ""}, ${validations.errors
           } error${validations.errors === 1 ? "" : "s"}.`
         );
       }
     }
 
     console.info(expts);
+    console.table(expts.map(e => ({
+      'Input Length': e.inputLength,
+      'Bins': e.numBins,
+      'Timing': e.timing,
+      'Time (ns)': e.time.toFixed(2),
+      'Bandwidth (GB/s)': e.bandwidth.toFixed(3)
+    })));
     const plots = testSuite.getPlots();
     for (let plot of plots) {
       /* default: if filter not specified, only take expts from the last test we ran */
       let filteredExpts = expts.filter(
         plot.filter ??
-          ((row) =>
-            row.testSuite === lastTestSeen.testSuite &&
-            row.category === lastTestSeen.category)
+        ((row) =>
+          row.testSuite === lastTestSeen.testSuite &&
+          row.category === lastTestSeen.category)
       );
       const mark = plot.mark ?? "lineY";
       console.info(
@@ -611,6 +597,7 @@ function processAndRecordResults(
   if (primitive.getBuffer("debugBuffer")) {
     result.debug = primitive.getBuffer("debugBuffer").cpuBuffer.slice(0, 8);
   }
+
   expts.push({
     ...result,
     timing: "GPU",

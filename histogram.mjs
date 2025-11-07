@@ -1,4 +1,4 @@
-import { range, arrayProd } from "./util.mjs";
+import { range, arrayProd, datatypeToTypedArray, datatypeToBytes } from "./util.mjs";
 import {
     BasePrimitive,
     Kernel,
@@ -7,7 +7,6 @@ import {
 } from "./primitive.mjs";
 import { BaseTestSuite } from "./testsuite.mjs";
 import { BinOpAddU32, BinOpAddF32 } from "./binop.mjs";
-import { datatypeToTypedArray, datatypeToBytes } from "./util.mjs";
 
 
 
@@ -98,9 +97,10 @@ export class BaseHistogram extends BasePrimitive {
                     datatype: this.datatype,
                 })
             ) {
-                returnString += `\nBin ${bin}: expected ${referenceOutput[bin]}, instead saw ${memdest[bin]} (diff: ${Math.abs(
-                    (referenceOutput[bin] - memdest[bin]) / referenceOutput[bin]
-                )}).`;
+                const ref = referenceOutput[bin];
+                const gpu = memdest[bin];
+                const diff = ref === 0 ? Math.abs(gpu - ref) : Math.abs((ref - gpu) / ref);
+                returnString += `\nBin ${bin}: expected ${ref}, instead saw ${gpu} (diff: ${diff}).`;
                 if (this.getBuffer("debugBuffer")) {
                     returnString += ` debug[${bin}] = ${this.getBuffer("debugBuffer").cpuBuffer[bin]}.`;
                 }
@@ -111,38 +111,38 @@ export class BaseHistogram extends BasePrimitive {
             }
         }
 
-        if (returnString !== "") {
-            console.log(
-                this.label,
-                "histogram",
-                "with input",
-                memsrc,
-                "should validate to",
-                referenceOutput,
-                "and actually validates to",
-                memdest,
-                this.getBuffer("debugBuffer") ? "\ndebugBuffer" : "",
-                this.getBuffer("debugBuffer")
-                    ? this.getBuffer("debugBuffer").cpuBuffer
-                    : "",
-                this.getBuffer("debug2Buffer") ? "\ndebug2Buffer" : "",
-                this.getBuffer("debug2Buffer")
-                    ? this.getBuffer("debug2Buffer").cpuBuffer
-                    : "",
-                this.binop.constructor.name,
-                this.binop.datatype,
-                "identity is",
-                this.binop.identity,
-                "bins:",
-                this.numBins,
-                "range:",
-                this.minValue,
-                "to",
-                this.maxValue,
-                "input length:",
-                memsrc.length
-            );
-        }
+        // ALWAYS log validation output, just like scan/reduce do
+        console.log(
+            this.label,
+            "histogram",
+            "with input",
+            memsrc,
+            "should validate to",
+            referenceOutput,
+            "and actually validates to",
+            memdest,
+            this.getBuffer("debugBuffer") ? "\ndebugBuffer" : "",
+            this.getBuffer("debugBuffer")
+                ? this.getBuffer("debugBuffer").cpuBuffer
+                : "",
+            this.getBuffer("debug2Buffer") ? "\ndebug2Buffer" : "",
+            this.getBuffer("debug2Buffer")
+                ? this.getBuffer("debug2Buffer").cpuBuffer
+                : "",
+            this.binop.constructor.name,
+            this.binop.datatype,
+            "identity is",
+            this.binop.identity,
+            "bins:",
+            this.numBins,
+            "range:",
+            this.minValue,
+            "to",
+            this.maxValue,
+            "input length:",
+            memsrc.length
+        );
+        
         return returnString;
     };
 }
@@ -197,7 +197,7 @@ export class WGHistogram extends BaseHistogram {
         /*Compute settings based on tunable parameters */
         this.workgroupCount = Math.min(Math.ceil(this.getBuffer("inputBuffer").size / this.workgroupSize), this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
-        
+
         // CREATE THE UNIFORM DATA
         const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
         this.histogramUniforms = new Uint32Array([
@@ -210,13 +210,21 @@ export class WGHistogram extends BaseHistogram {
             this.minValue,
             this.maxValue
         ]);
-        
-        // Combine into single buffer
-        this.histogramUniformsBuffer = new Uint8Array(
-            this.histogramUniforms.byteLength + histogramUniformsFloat.byteLength
-        );
-        this.histogramUniformsBuffer.set(new Uint8Array(this.histogramUniforms.buffer), 0);
-        this.histogramUniformsBuffer.set(new Uint8Array(histogramUniformsFloat.buffer), this.histogramUniforms.byteLength);
+
+        // Create 32-byte buffer with proper padding
+        const ub = new ArrayBuffer(32);
+        const dv = new DataView(ub);
+
+        dv.setUint32(0, inputLength, true);           // offset 0
+        dv.setUint32(4, this.numBins, true);          // offset 4
+        dv.setUint32(8, this.workgroupCount, true);   // offset 8
+        dv.setUint32(12, 0, true);                    // padding0 at 12
+
+        dv.setFloat32(16, this.minValue, true);       // offset 16
+        dv.setFloat32(20, this.maxValue, true);       // offset 20
+        // bytes 24..31 left as zero padding (padding1, padding2)
+
+        this.histogramUniformsBuffer = new Uint8Array(ub);
 
     }
     histogramKernelDefinition = () => {
@@ -233,7 +241,9 @@ export class WGHistogram extends BaseHistogram {
         padding0:u32,
         minValue:f32,
         maxValue:f32,
-    };
+        padding1:f32,
+        padding2:f32,
+    }
     @group(0) @binding(2) var<uniform> uniforms:HistogramUniforms;
 
     //privatized workgroup
@@ -269,9 +279,10 @@ export class WGHistogram extends BaseHistogram {
       // read input value
       let value: ${this.datatype} = inputBuffer[idx];
 
-      // compute bin index (map to 0..numBins-1)
-      //to get range between [1,0]
-      let normalized: f32 = (f32(value) - uniforms.minValue) / (uniforms.maxValue - uniforms.minValue);
+      // compute bin index (map to 0..numBins-1) with divide-by-zero protection
+      let range: f32 = uniforms.maxValue - uniforms.minValue;
+      var normalized: f32 = select((f32(value) - uniforms.minValue) / range, 0.0, range == 0.0);
+      normalized = clamp(normalized, 0.0, 0.999999); // keep in [0,1) to avoid out-of-range
       var binIndex: i32 = i32(floor(normalized * f32(NB)));
 
       //clampping to be in range of bins
@@ -311,7 +322,7 @@ export class WGHistogram extends BaseHistogram {
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                 populateWith: this.histogramUniformsBuffer,
             }),
-            
+
             new Kernel({
                 kernel: this.histogramKernelDefinition,
                 bufferTypes: [["read-only-storage", "storage", "uniform"]],
@@ -335,13 +346,13 @@ export class HierarchicalHistogram extends BaseHistogram {
         this.workgroupSize = this.workgroupSize ?? 256;
         this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 256;
         this.numThreadsPerWorkgroup = arrayProd(this.workgroupSize);
-        
+
         // Calculate workgroup count with hardware limit
         const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
         const idealWorkgroupCount = Math.ceil(inputLength / this.numThreadsPerWorkgroup);
         this.workgroupCount = Math.min(idealWorkgroupCount, this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
-        
+
         // CREATE THE HISTOGRAM UNIFORM DATA
         this.histogramUniforms = new Uint32Array([
             inputLength,
@@ -353,19 +364,28 @@ export class HierarchicalHistogram extends BaseHistogram {
             this.minValue,
             this.maxValue
         ]);
-        
-        // Combine into single buffer
-        this.histogramUniformsBuffer = new Uint8Array(
-            this.histogramUniforms.byteLength + histogramUniformsFloat.byteLength
-        );
-        this.histogramUniformsBuffer.set(new Uint8Array(this.histogramUniforms.buffer), 0);
-        this.histogramUniformsBuffer.set(new Uint8Array(histogramUniformsFloat.buffer), this.histogramUniforms.byteLength);
-        
-        // CREATE ACCUMULATE UNIFORMS
-        this.accumulateUniforms = new Uint32Array([
-            this.numBins,
-            this.workgroupCount
-        ]);
+
+        // Create 32-byte buffer with proper padding
+        const ub = new ArrayBuffer(32);
+        const dv = new DataView(ub);
+
+        dv.setUint32(0, inputLength, true);           // offset 0
+        dv.setUint32(4, this.numBins, true);          // offset 4
+        dv.setUint32(8, this.workgroupCount, true);   // offset 8
+        dv.setUint32(12, 0, true);                    // padding0 at 12
+
+        dv.setFloat32(16, this.minValue, true);       // offset 16
+        dv.setFloat32(20, this.maxValue, true);       // offset 20
+        // bytes 24..31 left as zero padding (padding1, padding2)
+
+        this.histogramUniformsBuffer = new Uint8Array(ub);
+
+        // CREATE ACCUMULATE UNIFORMS (8 bytes)
+        const accUB = new ArrayBuffer(8);
+        const accDV = new DataView(accUB);
+        accDV.setUint32(0, this.numBins, true);
+        accDV.setUint32(4, this.workgroupCount, true);
+        this.accumulateUniformsBuffer = new Uint8Array(accUB);
     }
     // Kernel 1: Each workgroup builds its own local histogram
     histogramPerWorkgroupKernel = () => {
@@ -382,6 +402,8 @@ export class HierarchicalHistogram extends BaseHistogram {
             padding0:u32,
             minValue:f32,
             maxValue:f32,
+            padding1:f32,
+            padding2:f32,
         }
         @group(0) @binding(2) var<uniform>uniforms:HistogramUniforms;
 
@@ -418,9 +440,10 @@ export class HierarchicalHistogram extends BaseHistogram {
             while (idx < inputLen) {
                 //Read input value
                 let value: ${this.datatype} = inputBuffer[idx];
-                //Compute bin index (map to 0..numBins-1)
-                let normalized: f32 = (f32(value) - uniforms.minValue) / 
-                                      (uniforms.maxValue - uniforms.minValue);
+                //Compute bin index (map to 0..numBins-1) with divide-by-zero protection
+                let range: f32 = uniforms.maxValue - uniforms.minValue;
+                var normalized: f32 = select((f32(value) - uniforms.minValue) / range, 0.0, range == 0.0);
+                normalized = clamp(normalized, 0.0, 0.999999); // keep in [0,1) to avoid out-of-range
                 var binIndex: i32 = i32(floor(normalized * f32(NB)));
                 
                 //Clamp to valid bin range
@@ -494,7 +517,7 @@ export class HierarchicalHistogram extends BaseHistogram {
                 label: "partials",
                 size: this.numBins * this.workgroupCount * 4, // 4 bytes per u32
             }),
-            
+
             // Allocate and populate histogram uniforms
             new AllocateBuffer({
                 label: "histogramUniforms",
@@ -502,13 +525,13 @@ export class HierarchicalHistogram extends BaseHistogram {
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
                 populateWith: this.histogramUniformsBuffer,
             }),
-            
+
             // Allocate and populate accumulate uniforms
             new AllocateBuffer({
                 label: "accumulateUniforms",
-                size: this.accumulateUniforms.byteLength,
+                size: this.accumulateUniformsBuffer.byteLength,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-                populateWith: this.accumulateUniforms,
+                populateWith: this.accumulateUniformsBuffer,
             }),
 
             // Kernel 1: Each workgroup builds local histogram
@@ -541,10 +564,12 @@ export class HierarchicalHistogram extends BaseHistogram {
 }
 
 const HistogramParams = {
-    inputLength: range(8, 24).map((i) => 2 ** i),  // 256 to 16M elements, like DLDF scan
+    inputLength: [2 ** 20, 2 ** 22, 2 ** 24, 2 ** 26, 2 ** 27],  // 5 sizes: 1M, 4M, 16M, 64M, 128M
     numBins: [64, 256],
     workgroupSize: [256],  // Single workgroup size like scan
     maxGSLWorkgroupCount: [256],  // Single workgroup count
+    minValue: [-1024.0],  // Can add more ranges like [-1024.0, 0.0, -512.0]
+    maxValue: [1024.0],   // Can add more ranges like [1024.0, 1.0, 512.0]
 };
 
 const HistogramParamsSingleton = {
@@ -552,6 +577,8 @@ const HistogramParamsSingleton = {
     numBins: [64],
     workgroupSize: [256],
     maxGSLWorkgroupCount: [64],
+    minValue: [-1024.0],
+    maxValue: [1024.0],
 };
 
 export const WGHistogramTestSuite = new BaseTestSuite({
@@ -559,13 +586,11 @@ export const WGHistogramTestSuite = new BaseTestSuite({
     testSuite: "workgroup histogram",
     trials: 10,
     params: HistogramParams,  // Use full parameter sweep
-    uniqueRuns: ["inputLength", "numBins", "workgroupSize"],
+    uniqueRuns: ["inputLength", "numBins", "workgroupSize"],  // Add "minValue", "maxValue" if you want different ranges as separate tests
     primitive: WGHistogram,
     primitiveArgs: {
         datatype: "f32",
         binop: BinOpAddU32,  // Histogram output is always u32 (counts)
-        minValue: -1024.0,
-        maxValue: 1024.0,
         gputimestamps: true,
     },
     plots: [
@@ -578,13 +603,11 @@ export const HierarchicalHistogramTestSuite = new BaseTestSuite({
     testSuite: "hierarchical histogram",
     trials: 10,
     params: HistogramParams,  // Use full parameter sweep
-    uniqueRuns: ["inputLength", "numBins"],
+    uniqueRuns: ["inputLength", "numBins"],  // Add "minValue", "maxValue" if you want different ranges as separate tests
     primitive: HierarchicalHistogram,
     primitiveArgs: {
         datatype: "f32",
         binop: BinOpAddU32,  // Histogram output is always u32 (counts)
-        minValue: -1024.0,
-        maxValue: 1024.0,
         gputimestamps: true,
     },
     plots: [

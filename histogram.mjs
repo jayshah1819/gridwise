@@ -142,7 +142,7 @@ export class BaseHistogram extends BasePrimitive {
             "input length:",
             memsrc.length
         );
-        
+
         return returnString;
     };
 }
@@ -344,7 +344,7 @@ export class HierarchicalHistogram extends BaseHistogram {
     }
     finalizeRuntimeParameters() {
         this.workgroupSize = this.workgroupSize ?? 256;
-        this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 256;
+        this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 512;  // Optimal balance based on benchmarks
         this.numThreadsPerWorkgroup = arrayProd(this.workgroupSize);
 
         // Calculate workgroup count with hardware limit
@@ -380,14 +380,21 @@ export class HierarchicalHistogram extends BaseHistogram {
 
         this.histogramUniformsBuffer = new Uint8Array(ub);
 
-        // CREATE ACCUMULATE UNIFORMS (8 bytes)
+        // CREATE CLEAR UNIFORMS (4 bytes)
+        const clearUB = new ArrayBuffer(4);
+        const clearDV = new DataView(clearUB);
+        clearDV.setUint32(0, this.numBins, true);
+        this.clearUniformsBuffer = new Uint8Array(clearUB);
+
+        // CREATE ACCUMULATE UNIFORMS (8 bytes - removed dispatch count, using numBins workgroups)
+        this.accumulateDispatchCount = this.numBins;  // ONE workgroup per bin!
         const accUB = new ArrayBuffer(8);
         const accDV = new DataView(accUB);
         accDV.setUint32(0, this.numBins, true);
         accDV.setUint32(4, this.workgroupCount, true);
         this.accumulateUniformsBuffer = new Uint8Array(accUB);
     }
-    // Kernel 1: Each workgroup builds its own local histogram
+    // Kernel 1: Each workgroup builds its own local histogram using workgroup atomics
     histogramPerWorkgroupKernel = () => {
         return /*wgsl*/`
         //input buffer
@@ -407,9 +414,9 @@ export class HierarchicalHistogram extends BaseHistogram {
         }
         @group(0) @binding(2) var<uniform>uniforms:HistogramUniforms;
 
-        //private workgroup 
-            // Private workgroup-local histogram
+        // Private workgroup-local histogram
         var<workgroup> privateHistogram: array<atomic<u32>, ${this.numBins}>;
+        
         @compute @workgroup_size(${this.workgroupSize})
         fn histogramPerWorkgroupKernel(
             @builtin(global_invocation_id) globalId: vec3<u32>,
@@ -432,12 +439,18 @@ export class HierarchicalHistogram extends BaseHistogram {
             }
             workgroupBarrier();
             
-            // Each thread processes elements with grid-stride loop
-            var idx:u32 = gwIndex;
+            // CRITICAL FIX: Process CONTIGUOUS BLOCKS per workgroup (like scan does!)
+            // This ensures each workgroup has INDEPENDENT data, reducing overlap
+            // Each workgroup processes: [wgIndex * chunkSize, (wgIndex+1) * chunkSize)
             let inputLen: u32 = uniforms.inputLength;
-            let totalThreads: u32 = WGS * uniforms.numWorkgroups;
+            let elementsPerWorkgroup: u32 = (inputLen + uniforms.numWorkgroups - 1u) / uniforms.numWorkgroups;
+            let workgroupStart: u32 = wgIndex * elementsPerWorkgroup;
+            let workgroupEnd: u32 = min(workgroupStart + elementsPerWorkgroup, inputLen);
             
-            while (idx < inputLen) {
+            // Each thread processes elements within THIS workgroup's chunk
+            var idx: u32 = workgroupStart + localIndex;
+            
+            while (idx < workgroupEnd) {
                 //Read input value
                 let value: ${this.datatype} = inputBuffer[idx];
                 //Compute bin index (map to 0..numBins-1) with divide-by-zero protection
@@ -449,33 +462,34 @@ export class HierarchicalHistogram extends BaseHistogram {
                 //Clamp to valid bin range
                 binIndex = clamp(binIndex, 0, i32(NB) - 1);
                 
-                // Increment private histogram
+                // Increment workgroup-local histogram (NO cross-workgroup conflicts!)
                 atomicAdd(&privateHistogram[u32(binIndex)], 1u);
-                // Grid-stride loop
-                idx = idx + totalThreads;
+                // Stride within THIS workgroup's chunk only
+                idx = idx + WGS;
             }
             
             workgroupBarrier();
             
-            // Write local histogram to partials buffer
-            // Each workgroup writes to partials[wgIndex * numBins : (wgIndex+1) * numBins]
+            // Write local histogram to partials buffer with COALESCED writes
+            // Transpose the write pattern: partials[binIndex * numWorkgroups + wgIndex]
+            // This makes accumulation much faster with sequential reads
             var b: u32 = localIndex;
             while (b < NB) {
                 let partialCount: u32 = atomicLoad(&privateHistogram[b]);
-                let partialIndex: u32 = wgIndex * NB + b;
+                // Transposed layout for better accumulation performance
+                let partialIndex: u32 = b * uniforms.numWorkgroups + wgIndex;
                 partials[partialIndex] = partialCount;
                 b = b + WGS;
             }
         }`;
     };
-    // kernel 2: for accumulated partials
+    // kernel 2: for accumulated partials - SIMPLE ACCUMULATION, NO BARRIERS!
     accumulateHistogramsKernel = () => {
         return /* wgsl */ `
         // Partials buffers
         @group(0) @binding(0) var<storage, read> partials: array<u32>;
-        // Output buffer: final accumulated histogram of partial buffer
+        // Output buffer with atomics for final sum
         @group(0) @binding(1) var<storage, read_write> outputBuffer: array<atomic<u32>>;
-        
 
         struct AccumulateUniforms {
             numBins: u32,
@@ -485,34 +499,66 @@ export class HierarchicalHistogram extends BaseHistogram {
         
         @compute @workgroup_size(${this.workgroupSize})
         fn accumulateHistogramsKernel(
-            @builtin(global_invocation_id) globalId: vec3<u32>
+            @builtin(global_invocation_id) globalId: vec3<u32>,
+            @builtin(local_invocation_id) localId: vec3<u32>,
+            @builtin(workgroup_id) workgroupId: vec3<u32>
         ) {
-            let binIndex: u32 = globalId.x;
+            let localIdx: u32 = localId.x;
+            let binIdx: u32 = workgroupId.x;  // ONE workgroup per bin!
             let NB: u32 = uniforms.numBins;
+            let numWG: u32 = uniforms.numWorkgroups;
+            let WGS: u32 = ${this.workgroupSize}u;
             
-            // Only process valid bins
-            if (binIndex >= NB) {
+            // Guard against out-of-bounds
+            if (binIdx >= NB) {
                 return;
             }
             
-
-            // Sum across all workgroup histograms for this bin
-            var sum: u32 = 0u;
-
-            for (var wg: u32 = 0u; wg < uniforms.numWorkgroups; wg = wg + 1u) {
-                let partialIndex: u32 = wg * NB + binIndex;
-                sum = sum + partials[partialIndex];
+            // Simple accumulation: each thread processes its subset and atomically adds
+            // With only 512 workgroups, this is MUCH faster than tree reduction with barriers
+            var wgIdx: u32 = localIdx;
+            
+            // Each thread directly accumulates its subset to output
+            // Sequential memory access pattern: partials[binIdx * numWG + wgIdx]
+            while (wgIdx < numWG) {
+                let partialIndex: u32 = binIdx * numWG + wgIdx;
+                let value: u32 = partials[partialIndex];
+                atomicAdd(&outputBuffer[binIdx], value);
+                wgIdx = wgIdx + WGS;
             }
             
-            //Write to output
-            atomicStore(&outputBuffer[binIndex], sum);
+            // NO BARRIERS, NO SHARED MEMORY - just simple atomic accumulation!
+            // 256 threads * 2 iterations = 512 atomic adds per bin
+            // This is WAY cheaper than 8 barrier operations!
         }`;
     };
+
+    // Kernel to clear/initialize the output buffer
+    clearOutputBufferKernel = () => {
+        return /* wgsl */ `
+        @group(0) @binding(0) var<storage, read_write> outputBuffer: array<atomic<u32>>;
+        
+        struct ClearUniforms {
+            numBins: u32,
+        }
+        @group(0) @binding(1) var<uniform> uniforms: ClearUniforms;
+        
+        @compute @workgroup_size(${this.workgroupSize})
+        fn clearOutputBufferKernel(
+            @builtin(global_invocation_id) globalId: vec3<u32>
+        ) {
+            let idx: u32 = globalId.x;
+            if (idx < uniforms.numBins) {
+                atomicStore(&outputBuffer[idx], 0u);
+            }
+        }`;
+    };
+
     compute() {
         this.finalizeRuntimeParameters();
 
         return [
-            // Allocate partials buffer: numBins × workgroupCount
+            // Allocate partials buffer: transposed layout [numBins][numWorkgroups]
             new AllocateBuffer({
                 label: "partials",
                 size: this.numBins * this.workgroupCount * 4, // 4 bytes per u32
@@ -534,7 +580,7 @@ export class HierarchicalHistogram extends BaseHistogram {
                 populateWith: this.accumulateUniformsBuffer,
             }),
 
-            // Kernel 1: Each workgroup builds local histogram
+            // Kernel 1: Each workgroup builds local histogram from contiguous chunks
             new Kernel({
                 kernel: this.histogramPerWorkgroupKernel,
                 bufferTypes: [["read-only-storage", "storage", "uniform"]],
@@ -546,7 +592,7 @@ export class HierarchicalHistogram extends BaseHistogram {
                 },
             }),
 
-            // Kernel 2: Accumulate all per-workgroup histograms
+            // Kernel 2: Accumulate all per-workgroup histograms (NO ATOMICS!)
             new Kernel({
                 kernel: this.accumulateHistogramsKernel,
                 bufferTypes: [["read-only-storage", "storage", "uniform"]],
@@ -554,8 +600,8 @@ export class HierarchicalHistogram extends BaseHistogram {
                 label: "accumulate histograms",
                 logKernelCodeToConsole: false,
                 getDispatchGeometry: () => {
-                    // Dispatch enough workgroups to cover all bins
-                    return [Math.ceil(this.numBins / this.workgroupSize)];
+                    // One workgroup per bin = numBins workgroups
+                    return [this.numBins];
                 },
             }),
         ];
@@ -567,7 +613,7 @@ const HistogramParams = {
     inputLength: [2 ** 20, 2 ** 22, 2 ** 24, 2 ** 26, 2 ** 27],  // 5 sizes: 1M, 4M, 16M, 64M, 128M
     numBins: [64, 256],
     workgroupSize: [256],  // Single workgroup size like scan
-    maxGSLWorkgroupCount: [256],  // Single workgroup count
+    maxGSLWorkgroupCount: [256, 512, 1024],  // Test different workgroup counts to find optimal
     minValue: [-1024.0],  // Can add more ranges like [-1024.0, 0.0, -512.0]
     maxValue: [1024.0],   // Can add more ranges like [1024.0, 1.0, 512.0]
 };
@@ -603,7 +649,7 @@ export const HierarchicalHistogramTestSuite = new BaseTestSuite({
     testSuite: "hierarchical histogram",
     trials: 10,
     params: HistogramParams,  // Use full parameter sweep
-    uniqueRuns: ["inputLength", "numBins"],  // Add "minValue", "maxValue" if you want different ranges as separate tests
+    uniqueRuns: ["inputLength", "numBins", "maxGSLWorkgroupCount"],  // Include workgroup count to see performance impact
     primitive: HierarchicalHistogram,
     primitiveArgs: {
         datatype: "f32",

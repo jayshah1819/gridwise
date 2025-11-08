@@ -148,8 +148,8 @@ async function main(navigator) {
   // let testSuites = [DLDFScanMiniSuite];
   // let testSuites = [DLDFScanAccuracyRegressionSuite];
   // let testSuites = [DLDFPerfSuite];
-  let testSuites = [WGHistogramTestSuite];
-  // let testSuites = [WGHistogramTestSuite, HierarchicalHistogramTestSuite];
+  // let testSuites = [WGHistogramTestSuite];
+  let testSuites = [WGHistogramTestSuite, HierarchicalHistogramTestSuite];
   // let testSuites = [HierarchicalHistogramTestSuite];
   // let testSuites = [DLDFDottedCachePerfTestSuite];
   // let testSuites = [DLDFDottedCachePerf2TestSuite];

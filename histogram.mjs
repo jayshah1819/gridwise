@@ -180,10 +180,10 @@ export class WGHistogram extends BaseHistogram {
         this.workgroupCount = Math.min(Math.ceil(this.getBuffer("inputBuffer").size / this.workgroupSize), this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
 
-        const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
-        
+        this.inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
+
         this.histogramUniformsBuffer = createUniformBuffer([
-            { type: 'u32', value: inputLength },
+            { type: 'u32', value: this.inputLength },
             { type: 'u32', value: this.numBins },
             { type: 'u32', value: this.workgroupCount },
             { type: 'f32', value: this.minValue },
@@ -293,13 +293,13 @@ export class HierarchicalHistogram extends BaseHistogram {
         this.maxGSLWorkgroupCount = this.maxGSLWorkgroupCount ?? 512;
         this.numThreadsPerWorkgroup = arrayProd(this.workgroupSize);
 
-        const inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
-        const idealWorkgroupCount = Math.ceil(inputLength / this.numThreadsPerWorkgroup);
+        this.inputLength = this.getBuffer("inputBuffer").size / datatypeToBytes(this.datatype);
+        const idealWorkgroupCount = Math.ceil(this.inputLength / this.numThreadsPerWorkgroup);
         this.workgroupCount = Math.min(idealWorkgroupCount, this.maxGSLWorkgroupCount);
         this.numPartials = this.workgroupCount;
 
         this.histogramUniformsBuffer = createUniformBuffer([
-            { type: 'u32', value: inputLength },
+            { type: 'u32', value: this.inputLength },
             { type: 'u32', value: this.numBins },
             { type: 'u32', value: this.workgroupCount },
             { type: 'f32', value: this.minValue },

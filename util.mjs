@@ -214,9 +214,9 @@ export function formatWGSL(wgslCode) {
     const pushLeft =
       /* lines like ") -> f32 {" */
       braceCount == 0 &&
-      (trimmedLine.startsWith(")") ||
-        trimmedLine.startsWith("]") ||
-        trimmedLine.startsWith("}"))
+        (trimmedLine.startsWith(")") ||
+          trimmedLine.startsWith("]") ||
+          trimmedLine.startsWith("}"))
         ? -1
         : 0;
 
@@ -260,6 +260,7 @@ export function formatWGSL(wgslCode) {
 export function createUniformBuffer(fields) {
   const dataSize = fields.length * 4;
 
+  //multiple of 16 bytes
   const alignedSize = Math.ceil(dataSize / 16) * 16;
 
   const buffer = new ArrayBuffer(alignedSize);
@@ -284,4 +285,5 @@ export function createUniformBuffer(fields) {
   }
 
   // Remaining paddings are automatically zero
-  return new Uint
+  return new Uint8Array(buffer);
+}

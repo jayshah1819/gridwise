@@ -21,8 +21,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy examples to docs
-        run: cp -r examples docs/examples
+      - name: Copy examples and source files to docs
+        run: |
+          cp -r examples docs/examples
+          cp -r src docs/src
+          cp *.mjs docs/ 2>/dev/null || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

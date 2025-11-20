@@ -17,9 +17,6 @@ header_pages:
   - about.markdown
 
 
-include:
-  - examples/
-
 exclude:
   - misc/
   - Gemfile

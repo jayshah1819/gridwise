@@ -802,11 +802,6 @@ dispatchGeometry: ${dispatchGeometry}`);
               /* do nothing, because we will fill the buffer with data */
             } else {
               /* this is the default -- clear the buffer */
-              console.log(
-                "Clearing buffer",
-                existingBuffer.label,
-                existingBuffer
-              );
               encoder.clearBuffer(existingBuffer.buffer.buffer);
             }
           } else {

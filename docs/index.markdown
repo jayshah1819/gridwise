@@ -1,5 +1,5 @@
 ---
-layout: home
+layout: gridwise-home
 title: Gridwise
 ---
 

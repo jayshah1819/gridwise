@@ -1,8 +1,5 @@
 ---
-layout: gridwise-home
-title: Gridwise
+layout: home
 ---
 
-README
-
-Welcome to the Gridwise documentation. Please select a topic from the sidebar.
+This is Gridwise.

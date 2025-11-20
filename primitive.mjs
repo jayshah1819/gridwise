@@ -791,10 +791,21 @@ dispatchGeometry: ${dispatchGeometry}`);
            */
           const existingBuffer = this.getBuffer(action.label);
           if (existingBuffer && existingBuffer.size === action.size) {
-            /* just use the existing buffer */
+            /* just use the existing buffer, but it might be full of non-zero data */
+            if (action.doNotZeroBuffer) {
+              /* do nothing */
+            } else {
+              /* this is the default -- clear the buffer */
+              console.log(
+                "Clearing buffer",
+                existingBuffer.label,
+                existingBuffer
+              );
+              encoder.clearBuffer(existingBuffer.buffer.buffer);
+            }
           } else {
             if (existingBuffer?.buffer) {
-              //// existingBuffer.buffer.destroy();
+              /* buffer exists, but different size. could destroy() it here */
             }
             this.device.pushErrorScope("out-of-memory");
             const allocatedBuffer = this.device.createBuffer({

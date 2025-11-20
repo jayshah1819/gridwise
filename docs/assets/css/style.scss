@@ -1,11 +1,7 @@
 ---
 ---
 
-@import
-  "minima/skins/{{ site.minima.skin | default: 'classic' }}",
-  "minima/initialize";
-
-/* Custom styles for Gridwise documentation */
+/* Custom styles for Gridwise documentation - standalone without theme imports */
 
 /* Reset browser defaults for consistent rendering */
 * {

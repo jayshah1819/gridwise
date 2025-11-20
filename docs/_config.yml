@@ -19,5 +19,3 @@ exclude:
   - misc/
   - Gemfile
   - Gemfile.lock
-
-source: docs

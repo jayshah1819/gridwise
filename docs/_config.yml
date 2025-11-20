@@ -6,10 +6,11 @@ url: "https://gridwise-webgpu.github.io"
 github_username: gridwise-webgpu
 
 markdown: kramdown
-theme: minima
+remote_theme: jekyll/minima
 permalink: pretty
 plugins:
   - jekyll-feed
+  - jekyll-remote-theme
 
 # Only show About in header navigation
 header_pages:

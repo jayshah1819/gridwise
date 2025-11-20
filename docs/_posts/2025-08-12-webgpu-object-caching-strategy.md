@@ -1,10 +1,8 @@
 ---
-layout: page
+layout: post
 title: "Gridwise WebGPU Object Caching Strategy"
-category: gridwise
-permalink: /gridwise/webgpu-object-caching-strategy/
-excerpt: "How Gridwise caches WebGPU objects to improve performance by avoiding expensive object recreation."
-order: 9
+date: 2025-08-12
+excerpt: "Learn about Gridwise's caching strategy for WebGPU objects to improve performance while balancing overhead costs."
 ---
 
 ## Gridwise WebGPU Object Caching Strategy

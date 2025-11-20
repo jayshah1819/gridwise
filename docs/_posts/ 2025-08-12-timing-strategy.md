@@ -1,10 +1,7 @@
 ---
-layout: page
+layout: post
 title: "Gridwise WebGPU Timing Strategy"
-category: gridwise
-permalink: /gridwise/timing-strategy/
-excerpt: "CPU and GPU timing methodologies for measuring and optimizing WebGPU primitive performance in Gridwise."
-order: 10
+date: 2025-08-12
 ---
 
 Building a high-performance WebGPU primitive library requires careful timing measurements to ensure that primitives deliver high performance to their users. In developing Gridwise, we designed both CPU and GPU timing methodologies and describe them here.

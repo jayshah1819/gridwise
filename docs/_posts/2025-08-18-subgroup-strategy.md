@@ -1,10 +1,8 @@
 ---
-layout: page
+layout: post
 title: "Gridwise WebGPU Subgroup Emulation Strategy"
-category: gridwise
-permalink: /gridwise/subgroup-strategy/
-excerpt: "Strategies for writing high-performance code that uses WGSL subgroups when available and falls back to emulation when not."
-order: 8
+date: 2025-08-18
+excerpt: "Discover Gridwise's approach to supporting WGSL subgroup functions while maintaining fallback compatibility for all devices."
 ---
 
 WGSL's [subgroup built-in functions](https://gpuweb.github.io/gpuweb/wgsl/#subgroup-builtin-functions) have the potential to significantly improve performance on subgroup-capable hardware. A [large (and growing) fraction of WebGPU devices](https://web3dsurvey.com/webgpu) support subgroups. However, writing high-performance code that supports both using subgroups when available _and_ falls back to code with no subgroups is a challenge. This document describes my experience attempting to do exactly that.

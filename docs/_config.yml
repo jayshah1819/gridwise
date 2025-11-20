@@ -20,3 +20,5 @@ exclude:
   - misc/
   - Gemfile
   - Gemfile.lock
+  - vendor/
+  - .bundle/

@@ -24,7 +24,6 @@ jobs:
       - name: Copy examples and source files to docs
         run: |
           cp -r examples docs/examples
-          cp -r  docs
           cp *.mjs docs/ 2>/dev/null || true
 
       - name: Setup Pages

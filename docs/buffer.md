@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise's Buffer Class"
 category: gridwise
-permalink: /gridwise/buffer/
+permalink: /buffer/
 excerpt: "The Buffer class encapsulates data that spans both CPU (typed arrays) and GPU (GPUBuffer), providing a unified interface for data management."
 order: 2
 ---

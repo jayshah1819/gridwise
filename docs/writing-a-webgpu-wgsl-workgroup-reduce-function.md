@@ -2,7 +2,7 @@
 layout: page
 title: "Abstraction Challenges in Writing a WebGPU/WGSL Workgroup Reduce Function"
 category: gridwise
-permalink: /gridwise/writing-a-webgpu-wgsl-workgroup-reduce-function/
+permalink: /writing-a-webgpu-wgsl-workgroup-reduce-function/
 excerpt: "A practical walkthrough of implementing a workgroupReduce function in WGSL, exploring language challenges and abstraction pain points."
 order: 11
 ---

@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise WebGPU Primitive Strategy wrt Subgroups"
 category: gridwise
-permalink: /gridwise/primitive-design/
+permalink: /primitive-design/
 excerpt: "How Gridwise implements single-pass chained algorithms for sort, scan, and reduce with and without subgroup support."
 order: 7
 ---

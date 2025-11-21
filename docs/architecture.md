@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise Architecture"
 category: gridwise
-permalink: /gridwise/architecture/
+permalink: /architecture/
 excerpt: "Overview of Gridwise's core architecture, including Primitives and Buffers, and how they provide best-in-class WebGPU compute performance."
 order: 1
 ---

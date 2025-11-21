@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise's Binary Operator Class"
 category: gridwise
-permalink: /gridwise/binop/
+permalink: /binop/
 excerpt: "Understanding the BinOp class that represents monoids with binary operations, datatypes, and identity elements for use in primitives."
 order: 3
 ---

@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise Scan and Reduce"
 category: gridwise
-permalink: /gridwise/scan-and-reduce/
+permalink: /scan-and-reduce/
 excerpt: "Implementation details of scan (parallel prefix) and reduce operations in Gridwise, including our SPAA 2025 paper findings."
 order: 4
 ---
@@ -103,7 +103,7 @@ primitdldfscanPrimitiveive.registerBuffer(testInputBuffer);
 
 ### Calling scan or reduce
 
-Once the primitive is defined and configured, simply call its `execute()` method. 
+Once the primitive is defined and configured, simply call its `execute()` method.
 
 If you have not yet registered buffers, you can specify them in the argument object as `inputBuffer` and `outputBuffer`.
 

@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise WebGPU Subgroup Emulation Strategy"
 category: gridwise
-permalink: /gridwise/subgroup-strategy/
+permalink: /subgroup-strategy/
 excerpt: "Strategies for writing high-performance code that uses WGSL subgroups when available and falls back to emulation when not."
 order: 8
 ---

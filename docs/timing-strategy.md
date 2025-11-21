@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise WebGPU Timing Strategy"
 category: gridwise
-permalink: /gridwise/timing-strategy/
+permalink: /timing-strategy/
 excerpt: "CPU and GPU timing methodologies for measuring and optimizing WebGPU primitive performance in Gridwise."
 order: 10
 ---

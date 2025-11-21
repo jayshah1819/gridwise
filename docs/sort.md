@@ -2,7 +2,7 @@
 layout: page
 title: "Gridwise Sort"
 category: gridwise
-permalink: /gridwise/sort/
+permalink: /sort/
 excerpt: "GPU radix sort implementation using the OneSweep architecture with chained scan and forward-progress guarantees."
 order: 5
 ---
@@ -81,7 +81,7 @@ oneSweepSortPrimitive.registerBuffer(testKeysBuffer);
 
 ### Calling scan or reduce
 
-Once the primitive is defined and configured, simply call its `execute()` method. 
+Once the primitive is defined and configured, simply call its `execute()` method.
 
 If you have not yet registered buffers, you can specify them in the argument object as `keysInOut`, `keysTemp`, etc.
 

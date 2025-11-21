@@ -27,13 +27,10 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Copy examples
-        run: cp -r examples docs/
-
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
-          source: ./docs
+          source: .
           destination: ./_site
         env:
           JEKYLL_ENV: production

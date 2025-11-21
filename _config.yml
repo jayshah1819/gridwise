@@ -22,3 +22,6 @@ exclude:
   - Gemfile.lock
   - vendor/
   - .bundle/
+
+include:
+  - "*.mjs"

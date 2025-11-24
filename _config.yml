@@ -15,6 +15,8 @@ plugins:
 
 header_pages:
   - about.markdown
+  - docs/example.html
+  - docs/docs.html
 
 
 exclude:

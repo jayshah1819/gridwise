@@ -1,206 +1,183 @@
 ---
-layout: null
-permalink: /example/
+layout: home
+title: Examples
+permalink: /examples/
 ---
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>WebGPU Interactive Example</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body, html {
-            height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #f5f7fa;
-            overflow: hidden;
-        }
-        
-        .status-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            padding: 40px;
-        }
-        
-        .status-card {
-            background: white;
-            border-radius: 12px;
-            padding: 48px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-            border: 1px solid #e1e8ed;
-            text-align: center;
-            max-width: 480px;
-            width: 100%;
-        }
-        
-        .status-icon {
-            width: 64px;
-            height: 64px;
-            margin: 0 auto 24px;
-            background: #667eea;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-        }
-        
-        .status-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #1a202c;
-            margin-bottom: 12px;
-            line-height: 1.3;
-        }
-        
-        .status-description {
-            font-size: 16px;
-            color: #718096;
-            margin-bottom: 32px;
-            line-height: 1.5;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 3px;
-            background: #e2e8f0;
-            border-radius: 2px;
-            overflow: hidden;
-            margin-bottom: 24px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            border-radius: 2px;
-            animation: loading 2s ease-in-out infinite;
-        }
-        
-        @keyframes loading {
-            0% { width: 0%; }
-            50% { width: 70%; }
-            100% { width: 100%; }
-        }
-        
-        iframe {
-            width: 100%;
-            height: 100vh;
-            border: none;
-            background: white;
-        }
-        
-        .fade-out {
-            opacity: 0;
-            transition: opacity 0.3s ease-out;
-        }
-    </style>
-</head>
-<body>
-    <div id="loading" class="status-container">
-        <div class="status-card">
-            <div class="status-icon">•</div>
-            <h1 class="status-title">Initializing WebGPU Example</h1>
-            <p class="status-description">Connecting to development server...</p>
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        function tryLoadExample() {
-            const exampleUrl = 'http://localhost:8000/examples/scan_sort_pane_example.html';
-            
-            fetch(exampleUrl, { method: 'HEAD', mode: 'no-cors' })
-                .then(() => {
-                    const loading = document.getElementById('loading');
-                    loading.classList.add('fade-out');
-                    
-                    setTimeout(() => {
-                        loading.style.display = 'none';
-                        const iframe = document.createElement('iframe');
-                        iframe.src = exampleUrl;
-                        document.body.appendChild(iframe);
-                    }, 300);
-                })
-                .catch(() => {
-                    showAutoStart();
-                });
-        }
-        
-        function showAutoStart() {
-            const statusCard = document.querySelector('.status-card');
-            statusCard.innerHTML = `
-                <div class="status-icon">•</div>
-                <h1 class="status-title">Starting Development Server</h1>
-                <p class="status-description">Launching server environment...</p>
-                <div class="progress-bar">
-                    <div class="progress-fill"></div>
-                </div>
-            `;
-            
-            const command = 'cd "/Volumes/T7 Shield/gridwise" && python3 -m http.server 8000';
-            
-            const applescript = `tell application "Terminal"
-    activate
-    do script "${command}"
-end tell`;
-            
-            const blob = new Blob([applescript], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'start_server.scpt';
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            
-            setTimeout(() => {
-                statusCard.innerHTML = `
-                    <div class="status-icon">•</div>
-                    <h1 class="status-title">Detecting Server</h1>
-                    <p class="status-description">Scanning for active development server...</p>
-                    <div class="progress-bar">
-                        <div class="progress-fill"></div>
-                    </div>
-                `;
-                
-                checkServerLoop();
-            }, 2000);
-        }
-        
-        function checkServerLoop() {
-            const exampleUrl = 'http://localhost:8000/examples/scan_sort_pane_example.html';
-            
-            fetch(exampleUrl, { method: 'HEAD', mode: 'no-cors' })
-                .then(() => {
-                    const loading = document.getElementById('loading');
-                    loading.classList.add('fade-out');
-                    
-                    setTimeout(() => {
-                        loading.style.display = 'none';
-                        const iframe = document.createElement('iframe');
-                        iframe.src = exampleUrl;
-                        document.body.appendChild(iframe);
-                    }, 300);
-                })
-                .catch(() => {
-                    setTimeout(checkServerLoop, 2000);
-                });
-        }
-        
-        tryLoadExample();
-    </script>
-</body>
-</html>
+
+
+<p>Interactive examples demonstrating WebGPU primitives and operations.</p>
+
+<style>
+    .example-btn {
+        display: inline-block;
+        padding: 6px 12px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 3px;
+        margin-right: 8px;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+
+    .example-btn:hover {
+        background: #0056b3;
+    }
+
+    .example-btn.source {
+        background: #6c757d;
+    }
+
+    .example-btn.source:hover {
+        background: #5a6268;
+    }
+
+    .example-btn.perf {
+        background: #28a745;
+    }
+
+    .example-btn.perf:hover {
+        background: #218838;
+    }
+
+    .code-block {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        margin: 10px 0;
+    }
+</style>
+
+<h2>Scan Example</h2>
+<p>Compact example that demonstrates exclusive vs inclusive scans using DLDFScan: how to choose scanType, build the
+    input array, run the primitive, and validate outputs. Good for understanding prefix-sum semantics and the effect of
+    different binary ops (add/max/min).</p>
+<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
+        and plots.</em></p>
+
+<h3>Scan Types</h3>
+<p><strong>Exclusive:</strong> Output[i] = sum of all elements before position i (output[0] is identity).</p>
+<p><strong>Inclusive:</strong> Output[i] = sum of all elements up to and including position i.</p>
+
+<h3>Binary Operations</h3>
+<p>Add, Min, Max — combines elements using the specified operation. Custom operations supported via binop.mjs.</p>
+
+<h3>Supported Data Types</h3>
+<p>u32, i32, f32 — all data types work with all binary operations.</p>
+
+<h3>Code Structure</h3>
+<div class="code-block">
+    // Exclusive scan with add operation<br>
+    const primitive = new DLDFScan({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;binop: new BinOpAdd({ datatype: "u32" }),<br>
+    &nbsp;&nbsp;type: "exclusive",<br>
+    &nbsp;&nbsp;datatype: "u32"<br>
+    });<br>
+    <br>
+    // Inclusive scan with max operation<br>
+    const primitive = new DLDFScan({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;binop: new BinOpMax({ datatype: "i32" }),<br>
+    &nbsp;&nbsp;type: "inclusive",<br>
+    &nbsp;&nbsp;datatype: "i32"<br>
+    });
+</div>
+
+<p>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_example.mjs" target="_blank"
+        class="example-btn source">Source Code</a>
+    <a href="https://gridwise-webgpu.github.io/gridwise/examples/scan_sort_perf.html" target="_blank"
+        class="example-btn perf">Performance</a>
+</p>
+
+<h2>Key/Value Sort Demo</h2>
+<p>Demonstrates OneSweepSort with two modes: key-only sorting and key-value pair sorting with payload validation. Shows
+    how to configure the primitive for different operations and data types.</p>
+<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
+        and plots.</em></p>
+
+<h3>Sort Operations</h3>
+<p><strong>Sort Keys:</strong> Sorts only the keys array in ascending or descending order.</p>
+<p><strong>Sort Pairs:</strong> Sorts keys while maintaining associated payloads, useful for sorting complex data
+    structures.</p>
+
+<h3>Supported Data Types</h3>
+<p>u32, i32, f32 — all data types support both sort modes with configurable sort direction.</p>
+
+<h3>Code Structure</h3>
+<div class="code-block">
+    // Key-only sort<br>
+    const primitive = new OneSweepSort({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;datatype: "u32",<br>
+    &nbsp;&nbsp;direction: "ascending",<br>
+    &nbsp;&nbsp;copyOutputToTemp: true,<br>
+    &nbsp;&nbsp;inputLength: 1024<br>
+    });<br>
+    <br>
+    // Key-value pair sort<br>
+    const primitive = new OneSweepSort({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;datatype: "u32",<br>
+    &nbsp;&nbsp;direction: "ascending",<br>
+    &nbsp;&nbsp;copyOutputToTemp: true,<br>
+    &nbsp;&nbsp;type: "keyvalue",<br>
+    &nbsp;&nbsp;inputLength: 1024<br>
+    });
+</div>
+
+<p>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/sort_pairs_example.mjs" target="_blank"
+        class="example-btn source">Source Code</a>
+    <a href="https://gridwise-webgpu.github.io/gridwise/examples/scan_sort_perf.html" target="_blank"
+        class="example-btn perf">Performance</a>
+</p>
+
+<h2>Reduce Operation</h2>
+<p>A minimal, hands-on example showing how to run the reduce primitive end-to-end: device setup, buffer upload, a single
+    execution, and result readback. Use this to learn the basic API calls and validation pattern. Parameters shown:
+    datatype and binop (add/max/min). Ideal as the first example before any benchmarking.</p>
+<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
+        and plots.</em></p>
+
+<h3>What is Reduce?</h3>
+<p>Reduces an entire array to a single value by repeatedly applying a binary operation across all elements.</p>
+
+<h3>Binary Operations</h3>
+<p>Add, Min, Max — aggregates all elements using the specified operation. Custom operations supported via binop.mjs.</p>
+
+<h3>Supported Data Types</h3>
+<p>u32, i32, f32 — all data types work with all binary operations.</p>
+
+<h3>Code Structure</h3>
+<div class="code-block">
+    // Reduce with add operation<br>
+    const primitive = new DLDFScan({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;binop: new BinOpAdd({ datatype: "u32" }),<br>
+    &nbsp;&nbsp;type: "reduce",<br>
+    &nbsp;&nbsp;datatype: "u32"<br>
+    });<br>
+    <br>
+    // Reduce with min operation<br>
+    const primitive = new DLDFScan({<br>
+    &nbsp;&nbsp;device,<br>
+    &nbsp;&nbsp;binop: new BinOpMin({ datatype: "i32" }),<br>
+    &nbsp;&nbsp;type: "reduce",<br>
+    &nbsp;&nbsp;datatype: "i32"<br>
+    });
+</div>
+
+<p>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_example.mjs" target="_blank"
+        class="example-btn source">Source Code</a>
+    <a href="https://gridwise-webgpu.github.io/gridwise/examples/reduce_perf.html" target="_blank"
+        class="example-btn perf">Performance</a>
+</p>
+
+<hr>

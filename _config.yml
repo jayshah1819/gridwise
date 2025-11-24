@@ -15,8 +15,6 @@ plugins:
 
 header_pages:
   - about.markdown
-  - docs/example.html
-  - docs/docs.html
 
 
 exclude:
@@ -25,6 +23,8 @@ exclude:
   - Gemfile.lock
   - vendor/
   - .bundle/
+  - docs/example.html
+  - docs/docs.html
 
 include:
   - "*.mjs"

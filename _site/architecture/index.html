@@ -3,20 +3,20 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"><!-- Begin Jekyll SEO tag v2.8.0 -->
-<title>Gridwise | WebGPU compute primitives in JavaScript</title>
+<title>Gridwise Architecture | Gridwise</title>
 <meta name="generator" content="Jekyll v3.10.0" />
-<meta property="og:title" content="Gridwise" />
+<meta property="og:title" content="Gridwise Architecture" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="WebGPU compute primitives in JavaScript" />
-<meta property="og:description" content="WebGPU compute primitives in JavaScript" />
-<link rel="canonical" href="http://localhost:4000/gridwise/docs/" />
-<meta property="og:url" content="http://localhost:4000/gridwise/docs/" />
+<meta name="description" content="Overview of Gridwise’s core architecture, including Primitives and Buffers, and how they provide best-in-class WebGPU compute performance." />
+<meta property="og:description" content="Overview of Gridwise’s core architecture, including Primitives and Buffers, and how they provide best-in-class WebGPU compute performance." />
+<link rel="canonical" href="http://localhost:4000/gridwise/architecture/" />
+<meta property="og:url" content="http://localhost:4000/gridwise/architecture/" />
 <meta property="og:site_name" content="Gridwise" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary" />
-<meta property="twitter:title" content="Gridwise" />
+<meta property="twitter:title" content="Gridwise Architecture" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","description":"WebGPU compute primitives in JavaScript","headline":"Gridwise","url":"http://localhost:4000/gridwise/docs/"}</script>
+{"@context":"https://schema.org","@type":"WebPage","description":"Overview of Gridwise’s core architecture, including Primitives and Buffers, and how they provide best-in-class WebGPU compute performance.","headline":"Gridwise Architecture","url":"http://localhost:4000/gridwise/architecture/"}</script>
 <!-- End Jekyll SEO tag -->
 <link rel="stylesheet" href="/gridwise/docs/assets/css/style.css"></head>
 <body><header class="site-header" role="banner">
@@ -48,7 +48,7 @@
     <!-- Left Sidebar Navigation -->
     <aside class="docs-sidebar">
         <h3>Documentation</h3><ul class="docs-nav"><li>
-                <a href="/gridwise/architecture/" >
+                <a href="/gridwise/architecture/" class="active" >
                     Gridwise Architecture
                 </a>
             </li><li>
@@ -108,11 +108,41 @@
     <main class="docs-content">
         <article class="post">
             <header class="post-header">
-                <h1 class="post-title"></h1>
+                <h1 class="post-title">Gridwise Architecture</h1>
             </header>
 
             <div class="post-content">
-                <p>README</p>
+                <p>The primary goal of Gridwise is to deliver best-in-class performance on WebGPU compute primitives while minimizing the amount of code that must be written by the library user. Ideally, a Gridwise user will declare and then execute a primitive and Gridwise will handle all low-level details of setting up and calling the necessary WebGPU primitives.</p>
+
+<h2 id="gridwise-abstraction">Gridwise Abstraction</h2>
+
+<h3 id="primitive">Primitive</h3>
+
+<p>The primary abstraction in Gridwise is a <code class="language-plaintext highlighter-rouge">Primitive</code>. Primitives are instances of a primitive-specific subclass of a JavaScript <code class="language-plaintext highlighter-rouge">Primitive</code> class. They have an <code class="language-plaintext highlighter-rouge">execute</code> member function, and the typical usage is to instantiate a primitive using <code class="language-plaintext highlighter-rouge">new()</code> and then call <code class="language-plaintext highlighter-rouge">execute()</code> on that primitive. Both instantiation and execution have numerous options. As an example, let’s look at a scan primitive, which is an instance of the <code class="language-plaintext highlighter-rouge">DLDFScan</code> class (“decoupled-lookback, decoupled-fallback scan”):</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">const</span> <span class="nx">datatype</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">u32</span><span class="dl">"</span><span class="p">;</span>
+<span class="kd">const</span> <span class="nx">dldfscanPrimitive</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">DLDFScan</span><span class="p">({</span>
+  <span class="nx">device</span><span class="p">,</span>
+  <span class="na">binop</span><span class="p">:</span> <span class="k">new</span> <span class="nx">BinOpAdd</span><span class="p">({</span> <span class="nx">datatype</span> <span class="p">}),</span>
+  <span class="na">type</span><span class="p">:</span> <span class="dl">"</span><span class="s2">exclusive</span><span class="dl">"</span><span class="p">,</span> <span class="c1">// "exclusive" is the default</span>
+  <span class="nx">datatype</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="k">await</span> <span class="nx">dldfscanPrimitive</span><span class="p">.</span><span class="nx">execute</span><span class="p">({</span>
+  <span class="nx">inputBuffer</span><span class="p">,</span>
+  <span class="nx">outputBuffer</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div></div>
+
+<p>This particular primitive is parameterized by its datatype (in this case, “u32”), by the binary operation (“binop”) performed by the scan (in this case, addition on u32 data), and by the scan operation (exclusive or inclusive).</p>
+
+<p>When the scan is actually executed, its arguments are buffers that store its input and output. This particular primitive has named arguments of an input buffer named <code class="language-plaintext highlighter-rouge">inputBuffer</code> and an output buffer named <code class="language-plaintext highlighter-rouge">outputBuffer</code>. These buffers can be WebGPU buffers of type <code class="language-plaintext highlighter-rouge">GPUBuffer</code> but can also be <code class="language-plaintext highlighter-rouge">Buffer</code>s, described next.</p>
+
+<p>The primitive performs all necessary WebGPU operations, including (optionally) setting up an encoder, building up and setting WebGPU layouts and pipelines, running the pipeline, and optionally recording GPU-side or CPU-side timing. It also caches WebGPU layouts and pipelines to avoid the expense of recreating them if they have already been created.</p>
+
+<h3 id="buffer">Buffer</h3>
+
+<p>One of the challenges of writing a primitive library is handling data, which may be stored on the CPU (in a JavaScript typed array) or on the GPU (as a WebGPU GPUBuffer). Gridwise’s <code class="language-plaintext highlighter-rouge">Buffer</code> class attempts to abstract away the details of separately managing CPU and GPU buffer data structures with one unified data structure that stores, and moves data between, both. This data structure has grown organically to handle many use cases and deserves more focus by future developers as a principled data structure in WebGPU programming.</p>
 
             </div>
         </article>

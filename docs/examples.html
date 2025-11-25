@@ -1,56 +1,43 @@
 ---
 layout: home
 title: Examples
-permalink: /examples/
+permalink: /examples-guide/
 ---
 
-
-<p>Interactive examples demonstrating WebGPU primitives and operations.</p>
-
 <style>
-    .example-btn {
+    .doc-btn {
         display: inline-block;
-        padding: 6px 12px;
-        background: #007bff;
+        padding: 8px 14px;
+        background: #39bda7;
         color: white;
         text-decoration: none;
-        border-radius: 3px;
+        border-radius: 4px;
         margin-right: 8px;
         margin-bottom: 10px;
         font-size: 14px;
+        transition: background 0.2s;
     }
 
-    .example-btn:hover {
-        background: #0056b3;
-    }
-
-    .example-btn.source {
-        background: #6c757d;
-    }
-
-    .example-btn.source:hover {
-        background: #5a6268;
-    }
-
-    .example-btn.perf {
-        background: #28a745;
-    }
-
-    .example-btn.perf:hover {
-        background: #218838;
+    .doc-btn:hover {
+        background: #2a9a87;
+        text-decoration: none;
+        color: white;
     }
 
     .code-block {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        padding: 10px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
         border-radius: 4px;
+        padding: 12px;
         overflow-x: auto;
         font-family: 'Courier New', monospace;
-        font-size: 12px;
+        font-size: 13px;
         margin: 10px 0;
     }
 </style>
+<p>Explore practical examples demonstrating how to use Gridwise WebGPU primitives for scan, sort, and reduce
+    operations. Each example includes code snippets, explanations of key concepts, and links to source code and
+    performance benchmarks.</p>
 
 <h2>Scan Example</h2>
 <p>Compact example that demonstrates exclusive vs inclusive scans using DLDFScan: how to choose scanType, build the
@@ -90,9 +77,9 @@ permalink: /examples/
 
 <p>
     <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_example.mjs" target="_blank"
-        class="example-btn source">Source Code</a>
-    <a href="https://gridwise-webgpu.github.io/gridwise/examples/scan_sort_perf.html" target="_blank"
-        class="example-btn perf">Performance</a>
+        class="doc-btn">Source Code</a>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_sort_perf.html" target="_blank"
+        class="doc-btn">Performance</a>
 </p>
 
 <h2>Key/Value Sort Demo</h2>
@@ -133,9 +120,9 @@ permalink: /examples/
 
 <p>
     <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/sort_pairs_example.mjs" target="_blank"
-        class="example-btn source">Source Code</a>
-    <a href="https://gridwise-webgpu.github.io/gridwise/examples/scan_sort_perf.html" target="_blank"
-        class="example-btn perf">Performance</a>
+        class="doc-btn">Source Code</a>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_sort_perf.html" target="_blank"
+        class="doc-btn">Performance</a>
 </p>
 
 <h2>Reduce Operation</h2>
@@ -175,9 +162,11 @@ permalink: /examples/
 
 <p>
     <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_example.mjs" target="_blank"
-        class="example-btn source">Source Code</a>
-    <a href="https://gridwise-webgpu.github.io/gridwise/examples/reduce_perf.html" target="_blank"
-        class="example-btn perf">Performance</a>
+        class="doc-btn">Source Code</a>
+    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_perf.mjs" target="_blank"
+        class="doc-btn">Performance</a>
+</p>
+class="doc-btn">Performance</a>
 </p>
 
 <hr>

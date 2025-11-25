@@ -1,7 +1,7 @@
 ---
 layout: home
 title: Documentation
-permalink: /docs/
+permalink: /
 ---
 
 
@@ -42,7 +42,7 @@ permalink: /docs/
     (scan, reduce, sort) are implemented as modular, reusable units. Understand the architectural decisions that enable
     performance optimization while maintaining clean separation of concerns and ease of extension.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/architecture/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/architecture/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Primitive Design</h2>
@@ -52,7 +52,7 @@ permalink: /docs/
     optimization techniques, and how to choose between chained algorithms and hybrid approaches for different use cases.
 </p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/primitive-design/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/primitive-design/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Scan and Reduce</h2>
@@ -61,7 +61,7 @@ permalink: /docs/
     Covers binary operations (Add, Min, Max), data type support (u32, i32, f32), API usage patterns with code examples,
     and when to use each variant for optimal performance.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/scan-and-reduce/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/scan-and-reduce/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Sort</h2>
@@ -70,7 +70,7 @@ permalink: /docs/
     types, buffer management strategies, and in-place versus temporary buffer approaches. Includes detailed API
     documentation and performance characteristics across different input sizes and configurations.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/sort/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/sort/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Binary Operations</h2>
@@ -79,7 +79,7 @@ permalink: /docs/
     interface, including implementation requirements, data type constraints, and validation patterns. Critical for users
     who need domain-specific aggregation operations.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/binop/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/binop/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Buffer Management</h2>
@@ -88,7 +88,7 @@ permalink: /docs/
     buffer sizes and performance, copy strategies for input/output, and how to handle edge cases with non-aligned input
     lengths. Essential for building efficient GridWise applications.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/buffer/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/buffer/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Timing Strategy</h2>
@@ -97,7 +97,7 @@ permalink: /docs/
     to use each. Explains warmup strategies, trial averaging, and how to interpret results across different hardware
     configurations for reliable performance comparisons.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/timing-strategy/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/timing-strategy/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Subgroup Strategy</h2>
@@ -106,7 +106,7 @@ permalink: /docs/
     operations. Covers GridWise's approach to subgroup detection, optional subgroup acceleration, and fallback
     strategies for hardware without subgroup support to maintain broad device compatibility.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/subgroup-strategy/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ "/subgroup-strategy/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Built-ins Strategy</h2>
@@ -115,7 +115,7 @@ permalink: /docs/
     aggregation patterns, and data movement. Covers vendor-specific optimizations and how to identify when built-in
     usage versus hand-tuned WGSL code provides the best performance on different hardware.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/builtins-strategy/" target="_blank" class="doc-btn">Read</a>
+    <a href="{{ " /builtins-strategy/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>WebGPU Object Caching Strategy</h2>
@@ -124,8 +124,7 @@ permalink: /docs/
     improves throughput for repeated operations. Covers caching strategies for different primitive configurations,
     memory management of cached objects, and invalidation patterns for long-running applications.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/webgpu-object-caching-strategy/" target="_blank"
-        class="doc-btn">Read</a>
+    <a href="{{ " /webgpu-object-caching-strategy/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <h2>Writing a WebGPU WGSL Workgroup Reduce Function</h2>
@@ -134,8 +133,7 @@ permalink: /docs/
     workgroup sizes, and optimization techniques using subgroups where available. Includes complete code examples and
     validation strategies for custom reduce operations.</p>
 <p>
-    <a href="https://gridwise-webgpu.github.io/gridwise/writing-a-webgpu-wgsl-workgroup-reduce-function/"
-        target="_blank" class="doc-btn">Read</a>
+    <a href="{{ " /writing-a-webgpu-wgsl-workgroup-reduce-function/" | relative_url }}" class="doc-btn">Read</a>
 </p>
 
 <hr>

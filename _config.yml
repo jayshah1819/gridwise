@@ -23,8 +23,6 @@ exclude:
   - Gemfile.lock
   - vendor/
   - .bundle/
-  - docs/example.html
-  - docs/docs.html
 
 include:
   - "*.mjs"

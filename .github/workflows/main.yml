@@ -2,9 +2,7 @@ name: Test Jekyll Build
 
 on:
   push:
-    branches: [ test-css-fix-github-actions ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   build:

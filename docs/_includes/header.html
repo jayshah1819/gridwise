@@ -24,15 +24,177 @@
         {%- endif -%}
         {%- endfor -%}
         <a class="button" href="{{ "/examples-guide/" | relative_url }}">Example Docs</a>
-        <a class="button" href="{{ "/" | relative_url }}">Read Docs</a>
-        <a class="button" href="javascript:void(0)" onclick="launchExample()">Try Interactive Example</a>
+        <div class="docs-dropdown">
+          <button class="button dropdown-button" onclick="document.body.classList.toggle('docs-expanded')">
+            Documentation
+          </button>
+          <div class="docs-menu-wrapper">
+            <div class="dropdown-contents">
+              <a class="dropdown-row" href="{{ "/architecture/" | relative_url }}">Architecture</a>
+              <a class="dropdown-row" href="{{ "/primitive-design/" | relative_url }}">Primitive Design</a>
+              <a class="dropdown-row" href="{{ "/scan-and-reduce/" | relative_url }}">Scan and Reduce</a>
+              <a class="dropdown-row" href="{{ "/sort/" | relative_url }}">Sort</a>
+              <a class="dropdown-row" href="{{ "/binop/" | relative_url }}">Binary Operations</a>
+              <a class="dropdown-row" href="{{ "/buffer/" | relative_url }}">Buffer Management</a>
+              <a class="dropdown-row" href="{{ "/timing-strategy/" | relative_url }}">Timing Strategy</a>
+              <a class="dropdown-row" href="{{ "/subgroup-strategy/" | relative_url }}">Subgroup Strategy</a>
+              <a class="dropdown-row" href="{{ "/builtins-strategy/" | relative_url }}">Built-ins Strategy</a>
+              <a class="dropdown-row" href="{{ "/webgpu-object-caching-strategy/" | relative_url }}">WebGPU Object Caching</a>
+              <a class="dropdown-row" href="{{ "/writing-a-webgpu-wgsl-workgroup-reduce-function/" | relative_url }}">Writing WGSL Reduce</a>
+            </div>
+          </div>
+        </div>
+        <div class="examples-dropdown">
+          <button class="button dropdown-button" onclick="document.body.classList.toggle('examples-expanded')">
+            Interactive Examples
+          </button>
+          <div class="dropdown-menu-wrapper">
+            <div class="dropdown-contents">
+             
+              <a class="dropdown-row" href="{{ "/examples/scan_visualization.html" | relative_url }}" target="_blank">Scan Visualization</a>
+              <a class="dropdown-row" href="{{ "/examples/sort_visualization.html" | relative_url }}" target="_blank">Sort Visualization</a>
+              <a class="dropdown-row" href="{{ "/examples/reduce_visualization.html" | relative_url }}" target="_blank">Reduce Visualization</a>
+               <a class="dropdown-row" href="{{ "/examples/interactive_demo.html" | relative_url }}" target="_blank">Interactive Demo </a>
+            </div>
+          </div>
+        </div>
       </div>
     </nav>
     {%- endif -%}
   </div>
 </header>
 
+<style>
+  .examples-dropdown,
+  .docs-dropdown {
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .dropdown-button {
+    cursor: pointer;
+    position: relative;
+  }
+
+  .dropdown-button:after {
+    content: ' ▾';
+    margin-left: 4px;
+  }
+
+  .dropdown-menu-wrapper,
+  .docs-menu-wrapper {
+    display: none;
+    position: absolute;
+    right: 0;
+    margin-top: 10px;
+    min-width: 280px;
+    z-index: 1000;
+    animation: dropdownFadeIn 0.3s ease-out;
+  }
+
+  @keyframes dropdownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  body.examples-expanded .dropdown-menu-wrapper {
+    display: block;
+  }
+
+  body.docs-expanded .docs-menu-wrapper {
+    display: block;
+  }
+
+  .dropdown-contents {
+    background: white;
+    border: 1px solid #d0d7de;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 
+                0 4px 8px rgba(0, 0, 0, 0.08),
+                0 0 1px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    padding: 8px 0;
+    max-height: 500px;
+    overflow-y: auto;
+  }
+
+  .dropdown-row {
+    display: block;
+    padding: 14px 24px;
+    text-decoration: none;
+    color: #1d1d1f;
+    transition: all 0.2s ease;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .dropdown-row:hover {
+    background: linear-gradient(90deg, #f6f8fa 0%, #ffffff 100%);
+    color: #39bda7;
+    padding-left: 28px;
+  }
+
+  .dropdown-row:active {
+    background: #e8eaed;
+  }
+
+  .dropdown-row:not(:last-child) {
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  /* Arrow indicator on hover */
+  .dropdown-row:hover::before {
+    content: '→';
+    position: absolute;
+    left: 12px;
+    color: #39bda7;
+    font-weight: bold;
+  }
+
+  /* Custom scrollbar for docs dropdown */
+  .dropdown-contents::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .dropdown-contents::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+  }
+
+  .dropdown-contents::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+  }
+
+  .dropdown-contents::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+</style>
+
 <script>
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(event) {
+    const examplesDropdown = document.querySelector('.examples-dropdown');
+    const docsDropdown = document.querySelector('.docs-dropdown');
+    
+    if (examplesDropdown && !examplesDropdown.contains(event.target)) {
+      document.body.classList.remove('examples-expanded');
+    }
+    
+    if (docsDropdown && !docsDropdown.contains(event.target)) {
+      document.body.classList.remove('docs-expanded');
+    }
+  });
+
   function launchExample() {
     window.open('https://gridwise-webgpu.github.io/gridwise/examples/scan_pane_example.html', '_blank');
   }

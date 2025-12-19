@@ -306,6 +306,7 @@ DEPENDENCIES
   http_parser.rb (~> 0.6.0)
   jekyll-feed
   jekyll-remote-theme
+  jekyll-seo-tag
   tzinfo (>= 1, < 3)
   tzinfo-data
   wdm (~> 0.1)

@@ -4,11 +4,47 @@
   <head>
     <meta charset="utf-8" />
     <title>Standalone WebGPU Scan/Reduce Primitive Test</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      h1 {
+        max-width: 1200px;
+        margin: 0 auto 20px;
+        color: #2c3e50;
+      }
+
+      #plot {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      p {
+        max-width: 1200px;
+        margin: 0 auto 20px;
+        padding: 0 20px;
+      }
+    </style>
   </head>
 
   <body>
+    <h1>WebGPU Scan/Reduce Primitive Example</h1>
+    <p>This example demonstrates the scan and reduce primitives with performance visualization. Check the console for detailed results.</p>
     <div id="plot"></div>
     <script src="scan_example.mjs" type="module"></script>
-    </script>
   </body>
 </html>

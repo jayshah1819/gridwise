@@ -25,148 +25,1218 @@ permalink: /examples-guide/
     }
 
     .code-block {
-        background: #f5f5f5;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 12px;
+        background: white;
+        border: 1px solid #e1e4e8;
+        border-radius: 6px;
+        padding: 16px;
         overflow-x: auto;
-        font-family: 'Courier New', monospace;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 13px;
-        margin: 10px 0;
+        margin: 15px 0;
+        line-height: 1.5;
+    }
+
+    .section-intro {
+        background: #f6f8fa;
+        border-left: 4px solid #39bda7;
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+
+    .github-link {
+        display: inline-block;
+        margin-top: 15px;
+        padding: 8px 14px;
+        background: white;
+        color: #0969da;
+        text-decoration: none;
+        border: 1px solid #d0d7de;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .github-link:hover {
+        background: #f6f8fa;
+        border-color: #0969da;
+        text-decoration: none;
+        color: #0969da;
+    }
+
+    .github-link::before {
+        content: "📄 ";
     }
 </style>
-<p>Explore practical examples demonstrating how to use Gridwise WebGPU primitives for scan, sort, and reduce
-    operations. Each example includes code snippets, explanations of key concepts, and links to source code and
-    performance benchmarks.</p>
 
-<h2>Scan Example</h2>
-<p>Compact example that demonstrates exclusive vs inclusive scans using DLDFScan: how to choose scanType, build the
-    input array, run the primitive, and validate outputs. Good for understanding prefix-sum semantics and the effect of
-    different binary ops (add/max/min).</p>
-<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
-        and plots.</em></p>
+<p style="font-size: 16px; color: #57606a;">Three interactive visualizations demonstrating Gridwise WebGPU primitives. Each includes live code editing, real GPU execution, and animated visualizations.</p>
 
-<h3>Scan Types</h3>
-<p><strong>Exclusive:</strong> Output[i] = sum of all elements before position i (output[0] is identity).</p>
-<p><strong>Inclusive:</strong> Output[i] = sum of all elements up to and including position i.</p>
+<hr style="margin: 30px 0; border: none; border-top: 2px solid #e1e4e8;">
 
-<h3>Binary Operations</h3>
-<p>Add, Min, Max — combines elements using the specified operation. Custom operations supported via binop.mjs.</p>
+<h2>1. Scan — Parallel Prefix Sum</h2>
 
-<h3>Supported Data Types</h3>
-<p>u32, i32, f32 — all data types work with all binary operations.</p>
-
-<h3>Code Structure</h3>
-<div class="code-block">
-    // Exclusive scan with add operation<br>
-    const primitive = new DLDFScan({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;binop: new BinOpAdd({ datatype: "u32" }),<br>
-    &nbsp;&nbsp;type: "exclusive",<br>
-    &nbsp;&nbsp;datatype: "u32"<br>
-    });<br>
-    <br>
-    // Inclusive scan with max operation<br>
-    const primitive = new DLDFScan({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;binop: new BinOpMax({ datatype: "i32" }),<br>
-    &nbsp;&nbsp;type: "inclusive",<br>
-    &nbsp;&nbsp;datatype: "i32"<br>
-    });
+<div class="section-intro">
+    <strong>What is Scan?</strong> Computes running totals across an array in parallel using <strong>DLDFScan</strong> (Decoupled Look-back Data-Parallel Scan). Each output element contains the sum (or max/min) of all previous elements. Essential for algorithms like stream compaction, radix sort, and work distribution.
 </div>
 
-<p>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_example.mjs" target="_blank"
-        class="doc-btn">Source Code</a>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_sort_perf.html" target="_blank"
-        class="doc-btn">Performance</a>
-</p>
-
-<h2>Key/Value Sort Demo</h2>
-<p>Demonstrates OneSweepSort with two modes: key-only sorting and key-value pair sorting with payload validation. Shows
-    how to configure the primitive for different operations and data types.</p>
-<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
-        and plots.</em></p>
-
-<h3>Sort Operations</h3>
-<p><strong>Sort Keys:</strong> Sorts only the keys array in ascending or descending order.</p>
-<p><strong>Sort Pairs:</strong> Sorts keys while maintaining associated payloads, useful for sorting complex data
-    structures.</p>
-
-<h3>Supported Data Types</h3>
-<p>u32, i32, f32 — all data types support both sort modes with configurable sort direction.</p>
-
-<h3>Code Structure</h3>
+<h3>How to Write Scan Code</h3>
 <div class="code-block">
-    // Key-only sort<br>
-    const primitive = new OneSweepSort({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;datatype: "u32",<br>
-    &nbsp;&nbsp;direction: "ascending",<br>
-    &nbsp;&nbsp;copyOutputToTemp: true,<br>
-    &nbsp;&nbsp;inputLength: 1024<br>
-    });<br>
-    <br>
-    // Key-value pair sort<br>
-    const primitive = new OneSweepSort({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;datatype: "u32",<br>
-    &nbsp;&nbsp;direction: "ascending",<br>
-    &nbsp;&nbsp;copyOutputToTemp: true,<br>
-    &nbsp;&nbsp;type: "keyvalue",<br>
-    &nbsp;&nbsp;inputLength: 1024<br>
-    });
+import { DLDFScan } from "./scandldf.mjs";<br>
+import { BinOpAdd } from "./binop.mjs";<br>
+<br>
+const scan = new DLDFScan({<br>
+&nbsp;&nbsp;device,<br>
+&nbsp;&nbsp;binop: new BinOpAdd({ datatype: "u32" }),<br>
+&nbsp;&nbsp;type: "inclusive",<br>
+&nbsp;&nbsp;datatype: "u32"<br>
+});<br>
+<br>
+await scan.execute({ inputBuffer, outputBuffer });
 </div>
 
-<p>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/sort_pairs_example.mjs" target="_blank"
-        class="doc-btn">Source Code</a>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_sort_perf.html" target="_blank"
-        class="doc-btn">Performance</a>
-</p>
+<h3>Data Types</h3>
+<p><strong>u32</strong> (unsigned 32-bit), <strong>i32</strong> (signed 32-bit), <strong>f32</strong> (32-bit float) — All types work with all operations.</p>
 
-<h2>Reduce Operation</h2>
-<p>A minimal, hands-on example showing how to run the reduce primitive end-to-end: device setup, buffer upload, a single
-    execution, and result readback. Use this to learn the basic API calls and validation pattern. Parameters shown:
-    datatype and binop (add/max/min). Ideal as the first example before any benchmarking.</p>
-<p><em>Open the page, pick parameters in the pane (datatype/binop/input length), click Start, then inspect the result
-        and plots.</em></p>
+<h3>Operations</h3>
+<p><strong>Add</strong> — Running sum across array<br>
+<strong>Max</strong> — Running maximum values<br>
+<strong>Min</strong> — Running minimum values</p>
 
-<h3>What is Reduce?</h3>
-<p>Reduces an entire array to a single value by repeatedly applying a binary operation across all elements.</p>
+<h3>Interactive Scan Visualization</h3>
+<p>Interactive scan visualization with animated progression showing how prefix sum operations accumulate values across 
+    the array. Watch as values flow from input to output with real-time animation. Configure scan type, operation, 
+    and array size to see different behaviors.</p>
 
-<h3>Binary Operations</h3>
-<p>Add, Min, Max — aggregates all elements using the specified operation. Custom operations supported via binop.mjs.</p>
+<style>
+    .scan-viz-container * {
+        box-sizing: border-box;
+    }
+    
+    .scan-viz-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    #scan-main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .scan-code-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .scan-code-section h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
+    
+    #scan-code-editor {
+        width: 100%;
+        height: 450px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 12px;
+        border: 2px solid #86868b;
+        border-radius: 8px;
+        resize: vertical;
+        background: white;
+        color: #000000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .scan-controls {
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .scan-canvas-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .scan-canvas-container h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
+    
+    #scan-canvas {
+        display: block;
+        width: 100%;
+        height: 420px;
+        border: 2px solid #86868b;
+        border-radius: 8px;
+        background: white;
+    }
+    
+    .scan-controls button {
+        padding: 8px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: none;
+        background: #39bda7;
+        box-shadow: 0 2px 8px rgba(57, 189, 167, 0.25);
+        font-size: 14px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        color: white;
+        height: 36px;
+        white-space: nowrap;
+    }
+    
+    .scan-controls button:hover {
+        background: #2a9a87;
+        transform: translateY(-1px);
+    }
+    
+    .scan-controls button:active {
+        background: #1f7a6a;
+        transform: translateY(0);
+    }
+    
+    .scan-controls button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .scan-controls label {
+        margin-right: 8px;
+        font-weight: 500;
+        font-size: 14px;
+        color: #1d1d1f;
+    }
+    
+    .scan-controls select,
+    .scan-controls input {
+        padding: 8px 12px;
+        border: 1px solid #d2d2d7;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        color: #1d1d1f;
+        height: 36px;
+    }
+    
+    #scan-status {
+        margin-top: 10px;
+        padding: 10px;
+        background: #e8f5e9;
+        border-radius: 4px;
+        display: none;
+    }
+    
+    #scan-status.error {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    #scan-status.success {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    @media (max-width: 1024px) {
+        #scan-main-content {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
 
-<h3>Supported Data Types</h3>
-<p>u32, i32, f32 — all data types work with all binary operations.</p>
+<div class="scan-viz-container">
+    <div id="scan-main-content">
+        <div class="scan-code-section">
+            <h3>Your Gridwise Scan Code</h3>
+            <textarea id="scan-code-editor" spellcheck="false"></textarea>
+            <div class="scan-controls">
+                <label>Array Size:</label>
+                <input type="number" id="scan-array-size" value="12" min="8" max="24" step="4">
+                
+                <label>Scan Type:</label>
+                <select id="scan-type">
+                    <option value="inclusive">Inclusive</option>
+                    <option value="exclusive">Exclusive</option>
+                </select>
+                
+                <label>Operation:</label>
+                <select id="scan-operation">
+                    <option value="add">Add</option>
+                    <option value="max">Max</option>
+                    <option value="min">Min</option>
+                </select>
 
-<h3>Code Structure</h3>
-<div class="code-block">
-    // Reduce with add operation<br>
-    const primitive = new DLDFScan({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;binop: new BinOpAdd({ datatype: "u32" }),<br>
-    &nbsp;&nbsp;type: "reduce",<br>
-    &nbsp;&nbsp;datatype: "u32"<br>
-    });<br>
-    <br>
-    // Reduce with min operation<br>
-    const primitive = new DLDFScan({<br>
-    &nbsp;&nbsp;device,<br>
-    &nbsp;&nbsp;binop: new BinOpMin({ datatype: "i32" }),<br>
-    &nbsp;&nbsp;type: "reduce",<br>
-    &nbsp;&nbsp;datatype: "i32"<br>
-    });
+                <button id="scan-new-array-btn">New Array</button>
+                <button id="scan-run-btn">Run Scan</button>
+            </div>
+            <div id="scan-status"></div>
+        </div>
+
+        <div class="scan-canvas-container">
+            <h3>Visualization</h3>
+            <canvas id="scan-canvas"></canvas>
+        </div>
+    </div>
 </div>
 
-<p>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_example.mjs" target="_blank"
-        class="doc-btn">Source Code</a>
-    <a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_perf.mjs" target="_blank"
-        class="doc-btn">Performance</a>
-</p>
-class="doc-btn">Performance</a>
-</p>
+<script type="module">
+import { DLDFScan } from "../scandldf.mjs";
+import { BinOpAdd, BinOpMax, BinOpMin } from "../binop.mjs";
 
-<hr>
+// Set up WebGPU device
+const scanAdapter = await navigator.gpu?.requestAdapter();
+const scanHasSubgroups = scanAdapter?.features.has("subgroups");
+const scanDevice = await scanAdapter?.requestDevice({
+  requiredFeatures: [
+    ...(scanHasSubgroups ? ["subgroups"] : []),
+  ],
+});
+
+if (!scanDevice) {
+  alert("WebGPU is not supported on this browser/device.");
+  throw new Error("WebGPU not supported");
+}
+
+// Canvas setup
+const scanCanvas = document.getElementById("scan-canvas");
+const scanCtx = scanCanvas.getContext("2d");
+
+function resizeScanCanvas() {
+  const rect = scanCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  scanCanvas.width = rect.width * dpr;
+  scanCanvas.height = rect.height * dpr;
+  scanCtx.scale(dpr, dpr);
+  scanCanvas.style.width = rect.width + 'px';
+  scanCanvas.style.height = rect.height + 'px';
+}
+resizeScanCanvas();
+window.addEventListener("resize", resizeScanCanvas);
+
+// UI Elements
+const scanCodeEditor = document.getElementById("scan-code-editor");
+const scanArraySizeInput = document.getElementById("scan-array-size");
+const scanTypeSelect = document.getElementById("scan-type");
+const scanOperationSelect = document.getElementById("scan-operation");
+const scanNewArrayBtn = document.getElementById("scan-new-array-btn");
+const scanRunBtn = document.getElementById("scan-run-btn");
+const scanStatusDiv = document.getElementById("scan-status");
+
+// Default code
+const scanDefaultCode = 'async function runScan(device, array, scanType, binop) {\n' +
+  '  const scanner = new DLDFScan({\n' +
+  '    device: device,\n' +
+  '    binop: binop,\n' +
+  '    type: scanType,\n' +
+  '    datatype: "u32",\n' +
+  '  });\n' +
+  '  \n' +
+  '  const inputBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.STORAGE | \n' +
+  '           GPUBufferUsage.COPY_DST,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const outputBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.STORAGE | \n' +
+  '           GPUBufferUsage.COPY_SRC | \n' +
+  '           GPUBufferUsage.COPY_DST,\n' +
+  '  });\n' +
+  '  \n' +
+  '  device.queue.writeBuffer(inputBuffer, 0, array);\n' +
+  '  \n' +
+  '  await scanner.execute({\n' +
+  '    inputBuffer: inputBuffer,\n' +
+  '    outputBuffer: outputBuffer,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const mappableBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.MAP_READ | \n' +
+  '           GPUBufferUsage.COPY_DST,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const encoder = device.createCommandEncoder();\n' +
+  '  encoder.copyBufferToBuffer(\n' +
+  '    outputBuffer, 0, \n' +
+  '    mappableBuffer, 0, \n' +
+  '    array.byteLength\n' +
+  '  );\n' +
+  '  device.queue.submit([encoder.finish()]);\n' +
+  '  \n' +
+  '  await mappableBuffer.mapAsync(GPUMapMode.READ);\n' +
+  '  const result = new Uint32Array(\n' +
+  '    mappableBuffer.getMappedRange().slice()\n' +
+  '  );\n' +
+  '  mappableBuffer.unmap();\n' +
+  '  \n' +
+  '  return result;\n' +
+  '}\n' +
+  '\n' +
+  'return runScan;';
+
+scanCodeEditor.value = scanDefaultCode;
+
+function generateScanArray(size) {
+  const arr = new Uint32Array(size);
+  for (let i = 0; i < size; i++) {
+    arr[i] = Math.floor(Math.random() * 9) + 1;
+  }
+  return arr;
+}
+
+let scanAnimationFrameId = null;
+
+function drawScanVisualization(inputArray, outputArray, progress = 0) {
+  const rect = scanCanvas.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  
+  scanCtx.imageSmoothingEnabled = true;
+  scanCtx.imageSmoothingQuality = 'high';
+  scanCtx.clearRect(0, 0, width, height);
+  
+  const padding = 40;
+  const usableWidth = width - padding * 2;
+  const usableHeight = height - padding * 2;
+  
+  const spacing = 10;
+  const cellSize = Math.min(100, (usableWidth - spacing * (inputArray.length - 1)) / inputArray.length);
+  const cellWidth = cellSize;
+  const cellHeight = cellSize;
+  const barWidth = cellSize + spacing;
+  
+  const maxInput = Math.max(...inputArray);
+  const maxOutput = Math.max(...outputArray);
+  const maxValue = Math.max(maxInput, maxOutput, 1);
+  
+  // Draw input row
+  const inputY = padding + 40;
+  scanCtx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+  scanCtx.fillStyle = '#1d1d1f';
+  scanCtx.textAlign = 'left';
+  scanCtx.textBaseline = 'bottom';
+  scanCtx.fillText('Input:', padding, inputY - 15);
+  
+  for (let i = 0; i < inputArray.length; i++) {
+    const x = padding + i * barWidth;
+    
+    scanCtx.fillStyle = '#ffffff';
+    scanCtx.strokeStyle = '#333333';
+    scanCtx.lineWidth = 2;
+    
+    scanCtx.fillRect(x, inputY, cellWidth, cellHeight);
+    scanCtx.strokeRect(x, inputY, cellWidth, cellHeight);
+    
+    scanCtx.fillStyle = '#1d1d1f';
+    const fontSize = Math.max(24, Math.min(40, cellSize * 0.5));
+    scanCtx.font = 'bold ' + fontSize + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+    scanCtx.textAlign = 'center';
+    scanCtx.textBaseline = 'middle';
+    scanCtx.fillText(inputArray[i], x + cellWidth / 2, inputY + cellHeight / 2);
+  }
+  
+  // Draw arrows
+  const arrowY = inputY + cellHeight + 30;
+  const currentIndex = Math.floor(progress * inputArray.length);
+  
+  for (let i = 0; i < inputArray.length; i++) {
+    const x = padding + i * barWidth;
+    const arrowProgress = Math.max(0, Math.min(1, progress * inputArray.length - i));
+    
+    if (arrowProgress > 0) {
+      scanCtx.strokeStyle = i <= currentIndex ? '#f5576c' : '#e0e0e0';
+      scanCtx.lineWidth = 3;
+      scanCtx.globalAlpha = 0.3 + 0.7 * arrowProgress;
+      
+      const arrowStartY = inputY + cellHeight + 5;
+      const arrowEndY = arrowY + 20;
+      
+      scanCtx.beginPath();
+      scanCtx.moveTo(x + cellWidth / 2, arrowStartY);
+      scanCtx.lineTo(x + cellWidth / 2, arrowEndY);
+      scanCtx.stroke();
+      
+      scanCtx.beginPath();
+      scanCtx.moveTo(x + cellWidth / 2 - 5, arrowEndY - 5);
+      scanCtx.lineTo(x + cellWidth / 2, arrowEndY);
+      scanCtx.lineTo(x + cellWidth / 2 + 5, arrowEndY - 5);
+      scanCtx.stroke();
+      
+      scanCtx.globalAlpha = 1;
+    }
+  }
+  
+  // Draw output row
+  const outputY = arrowY + 50;
+  scanCtx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+  scanCtx.fillStyle = '#1d1d1f';
+  scanCtx.textAlign = 'left';
+  scanCtx.textBaseline = 'bottom';
+  scanCtx.fillText('Output:', padding, outputY - 15);
+  
+  for (let i = 0; i < outputArray.length; i++) {
+    const x = padding + i * barWidth;
+    const cellProgress = Math.max(0, Math.min(1, progress * inputArray.length - i));
+    
+    if (cellProgress > 0.01) {
+      const isComplete = i < currentIndex;
+      
+      if (isComplete) {
+        scanCtx.fillStyle = '#e3f2fd';
+        scanCtx.strokeStyle = '#1976d2';
+      } else {
+        scanCtx.fillStyle = '#fff3e0';
+        scanCtx.strokeStyle = '#f57c00';
+      }
+      
+      const scale = 0.7 + 0.3 * cellProgress;
+      const scaledWidth = cellWidth * scale;
+      const scaledHeight = cellHeight * scale;
+      const offsetX = (cellWidth - scaledWidth) / 2;
+      const offsetY = (cellHeight - scaledHeight) / 2;
+      
+      scanCtx.lineWidth = 2;
+      scanCtx.globalAlpha = cellProgress;
+      
+      scanCtx.fillRect(x + offsetX, outputY + offsetY, scaledWidth, scaledHeight);
+      scanCtx.strokeRect(x + offsetX, outputY + offsetY, scaledWidth, scaledHeight);
+      
+      if (cellProgress > 0.3) {
+        scanCtx.fillStyle = isComplete ? '#1976d2' : '#f57c00';
+        const fontSize = Math.max(20, Math.min(36, cellSize * 0.45));
+        scanCtx.font = 'bold ' + fontSize + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+        scanCtx.textAlign = 'center';
+        scanCtx.textBaseline = 'middle';
+        // Position text in the center of the scaled box
+        scanCtx.fillText(outputArray[i], x + cellWidth / 2, outputY + cellHeight / 2);
+      }
+      
+      scanCtx.globalAlpha = 1;
+    }
+  }
+  
+  // Draw bar chart
+  const chartY = outputY + cellHeight + 60;
+  const chartHeight = height - chartY - padding;
+  
+  if (chartHeight > 50) {
+    scanCtx.font = 'bold 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    scanCtx.fillStyle = '#1d1d1f';
+    scanCtx.textAlign = 'left';
+    scanCtx.textBaseline = 'bottom';
+    scanCtx.fillText('Accumulated Values:', padding, chartY - 15);
+    
+    for (let i = 0; i < outputArray.length; i++) {
+      const x = padding + i * barWidth;
+      const barProgress = Math.max(0, Math.min(1, progress * inputArray.length - i));
+      
+      if (barProgress > 0.01) {
+        const barHeight = (outputArray[i] / maxValue) * chartHeight * barProgress;
+        const barY = chartY + chartHeight - barHeight;
+        
+        scanCtx.fillStyle = '#64b5f6';
+        scanCtx.strokeStyle = '#1976d2';
+        scanCtx.lineWidth = 2;
+        
+        scanCtx.globalAlpha = barProgress;
+        scanCtx.fillRect(x, barY, cellWidth, barHeight);
+        scanCtx.strokeRect(x, barY, cellWidth, barHeight);
+        
+        if (barHeight > 20 && barProgress > 0.3) {
+          scanCtx.fillStyle = '#1d1d1f';
+          scanCtx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+          scanCtx.textAlign = 'center';
+          scanCtx.textBaseline = 'bottom';
+          scanCtx.fillText(outputArray[i], x + cellWidth / 2, barY - 3);
+        }
+        
+        scanCtx.globalAlpha = 1;
+      }
+    }
+  }
+  
+  // Progress indicator
+  scanCtx.fillStyle = '#39bda7';
+  scanCtx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
+  scanCtx.textAlign = 'right';
+  scanCtx.textBaseline = 'top';
+  scanCtx.fillText(
+    'Computing: ' + Math.min(currentIndex + 1, inputArray.length) + ' / ' + inputArray.length,
+    width - padding,
+    padding - 5
+  );
+}
+
+async function animateScan(inputArray, outputArray) {
+  const duration = 2000;
+  const fps = 60;
+  const frames = (duration / 1000) * fps;
+  
+  return new Promise((resolve) => {
+    let frame = 0;
+    
+    function animate() {
+      frame++;
+      const progress = Math.min(frame / frames, 1);
+      
+      drawScanVisualization(inputArray, outputArray, progress);
+      
+      if (progress < 1) {
+        scanAnimationFrameId = requestAnimationFrame(animate);
+      } else {
+        scanAnimationFrameId = null;
+        resolve();
+      }
+    }
+    
+    animate();
+  });
+}
+
+function showScanStatus(message, isError = false) {
+  scanStatusDiv.textContent = message;
+  scanStatusDiv.className = isError ? 'error' : 'success';
+  scanStatusDiv.style.display = 'block';
+  
+  setTimeout(() => {
+    scanStatusDiv.style.display = 'none';
+  }, 3000);
+}
+
+let scanCurrentArray = generateScanArray(12);
+
+function getScanBinOp(operation) {
+  switch (operation) {
+    case 'add':
+      return new BinOpAdd({ datatype: "u32" });
+    case 'max':
+      return new BinOpMax({ datatype: "u32" });
+    case 'min':
+      return new BinOpMin({ datatype: "u32" });
+    default:
+      return new BinOpAdd({ datatype: "u32" });
+  }
+}
+
+scanNewArrayBtn.addEventListener("click", () => {
+  const arraySize = parseInt(scanArraySizeInput.value);
+  scanCurrentArray = generateScanArray(arraySize);
+  
+  const dummyOutput = new Uint32Array(arraySize).fill(0);
+  drawScanVisualization(scanCurrentArray, dummyOutput, 0);
+  
+  showScanStatus('Generated new array with ' + arraySize + ' elements');
+  console.log("New array:", scanCurrentArray);
+});
+
+scanRunBtn.addEventListener("click", async () => {
+  const scanType = scanTypeSelect.value;
+  const operation = scanOperationSelect.value;
+  
+  scanRunBtn.disabled = true;
+  scanNewArrayBtn.disabled = true;
+  
+  try {
+    if (scanAnimationFrameId) {
+      cancelAnimationFrame(scanAnimationFrameId);
+      scanAnimationFrameId = null;
+    }
+    
+    const inputArray = new Uint32Array(scanCurrentArray);
+    const dummyOutput = new Uint32Array(inputArray.length).fill(0);
+    drawScanVisualization(inputArray, dummyOutput, 0);
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    const userCode = scanCodeEditor.value;
+    const runScanFunction = new Function(
+      'device', 'DLDFScan', 'BinOpAdd', 'BinOpMax', 'BinOpMin',
+      'GPUBufferUsage', 'GPUMapMode', 'Uint32Array',
+      userCode
+    );
+    
+    const scanFn = runScanFunction(
+      scanDevice, DLDFScan, BinOpAdd, BinOpMax, BinOpMin,
+      GPUBufferUsage, GPUMapMode, Uint32Array
+    );
+    
+    const binop = getScanBinOp(operation);
+    const scannedArray = await scanFn(scanDevice, inputArray, scanType, binop);
+    
+    await animateScan(inputArray, scannedArray);
+    
+    console.log("Input:", inputArray);
+    console.log("Scanned:", scannedArray);
+    
+    showScanStatus(scanType.charAt(0).toUpperCase() + scanType.slice(1) + ' scan completed successfully!');
+    
+  } catch (error) {
+    console.error("Error running code:", error);
+    showScanStatus('Error: ' + error.message, true);
+  } finally {
+    scanRunBtn.disabled = false;
+    scanNewArrayBtn.disabled = false;
+  }
+});
+
+scanArraySizeInput.addEventListener("change", () => {
+  let value = parseInt(scanArraySizeInput.value);
+  value = Math.round(value / 4) * 4;
+  value = Math.max(8, Math.min(24, value));
+  scanArraySizeInput.value = value;
+});
+
+const scanInitialOutput = new Uint32Array(scanCurrentArray.length).fill(0);
+drawScanVisualization(scanCurrentArray, scanInitialOutput, 0);
+</script>
+
+<a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/scan_visualization.mjs" target="_blank" class="github-link">View Source Code on GitHub</a>
+
+<hr style="margin: 40px 0; border: none; border-top: 2px solid #e1e4e8;">
+
+<h2>2. Sort — Parallel Sorting</h2>
+
+<div class="section-intro">
+    <strong>What is Sort?</strong> Arranges array elements in ascending or descending order using <strong>OneSweep</strong> radix sort algorithm. GPU-accelerated parallel sorting that efficiently handles large arrays with optimal memory access patterns.
+</div>
+
+<h3>How to Write Sort Code</h3>
+<div class="code-block">
+import { OneSweepSort } from "./sort.mjs";<br>
+<br>
+const sort = new OneSweepSort({<br>
+&nbsp;&nbsp;device,<br>
+&nbsp;&nbsp;datatype: "u32",<br>
+&nbsp;&nbsp;direction: "ascending"<br>
+});<br>
+<br>
+await sort.execute({ keysInOut: inputBuffer, keysTemp: outputBuffer });
+</div>
+
+<h3>Data Types</h3>
+<p><strong>u32</strong> (unsigned 32-bit), <strong>i32</strong> (signed 32-bit), <strong>f32</strong> (32-bit float) — Efficient radix sorting for all numeric types.</p>
+
+<h3>Sort Directions</h3>
+<p><strong>Ascending</strong> — Smallest to largest<br>
+<strong>Descending</strong> — Largest to smallest</p>
+
+<h3>Interactive Sort Visualization</h3>
+<p>Interactive sort visualization with animated bar chart. Watch the sorting algorithm in action as bars animate from 
+    unsorted to sorted state. Edit the code and configure parameters directly below.</p>
+
+<style>
+    .sort-viz-container * {
+        box-sizing: border-box;
+    }
+    
+    .sort-viz-container {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    #sort-main-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .sort-code-section {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sort-code-section h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
+    
+    #sort-code-editor {
+        width: 100%;
+        height: 450px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 12px;
+        border: 2px solid #86868b;
+        border-radius: 8px;
+        resize: vertical;
+        background: white;
+        color: #000000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .sort-controls {
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .sort-canvas-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sort-canvas-container h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+        font-size: 20px;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
+    
+    #sort-bar-chart {
+        display: block;
+        width: 100%;
+        height: 420px;
+        border: 2px solid #86868b;
+        border-radius: 8px;
+        background: white;
+    }
+    
+    .sort-controls button {
+        padding: 8px 18px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: none;
+        background: #39bda7;
+        box-shadow: 0 2px 8px rgba(57, 189, 167, 0.25);
+        font-size: 14px;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        color: white;
+        height: 36px;
+        white-space: nowrap;
+    }
+    
+    .sort-controls button:hover {
+        background: #2a9a87;
+        transform: translateY(-1px);
+    }
+    
+    .sort-controls button:active {
+        background: #1f7a6a;
+        transform: translateY(0);
+    }
+    
+    .sort-controls button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .sort-controls label {
+        margin-right: 8px;
+        font-weight: 500;
+        font-size: 14px;
+        color: #1d1d1f;
+    }
+    
+    .sort-controls select,
+    .sort-controls input {
+        padding: 8px 12px;
+        border: 1px solid #d2d2d7;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        color: #1d1d1f;
+        height: 36px;
+    }
+    
+    #sort-status {
+        margin-top: 10px;
+        padding: 10px;
+        background: #e8f5e9;
+        border-radius: 4px;
+        display: none;
+    }
+    
+    #sort-status.error {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    #sort-status.success {
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    @media (max-width: 1024px) {
+        #sort-main-content {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="sort-viz-container">
+    <div id="sort-main-content">
+        <div class="sort-code-section">
+            <h3>Your Gridwise Sort Code</h3>
+            <textarea id="sort-code-editor" spellcheck="false"></textarea>
+            <div class="sort-controls">
+                <label>Array Size:</label>
+                <input type="number" id="sort-array-size" value="64" min="16" max="256" step="16">
+                
+                <label>Direction:</label>
+                <select id="sort-direction">
+                    <option value="ascending">Ascending</option>
+                    <option value="descending">Descending</option>
+                </select>
+
+                <button id="sort-new-array-btn">New Array</button>
+                <button id="sort-run-btn">Run Sort</button>
+            </div>
+            <div id="sort-status"></div>
+        </div>
+
+        <div class="sort-canvas-container">
+            <h3>Visualization</h3>
+            <canvas id="sort-bar-chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import { OneSweepSort } from "../onesweep.mjs";
+
+// Set up WebGPU device
+const adapter = await navigator.gpu?.requestAdapter();
+const device = await adapter?.requestDevice({
+  requiredLimits: {
+    maxComputeWorkgroupStorageSize: 32768,
+  },
+  requiredFeatures: adapter.features.has("subgroups") ? ["subgroups"] : [],
+});
+
+if (!device) {
+  alert("WebGPU is not supported on this browser/device.");
+  throw new Error("WebGPU not supported");
+}
+
+// Canvas setup
+const canvas = document.getElementById("sort-bar-chart");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
+
+// UI Elements
+const codeEditor = document.getElementById("sort-code-editor");
+const arraySizeInput = document.getElementById("sort-array-size");
+const directionSelect = document.getElementById("sort-direction");
+const newArrayBtn = document.getElementById("sort-new-array-btn");
+const runBtn = document.getElementById("sort-run-btn");
+const statusDiv = document.getElementById("sort-status");
+
+// Default code
+const defaultCode = 'async function runSort(device, array, direction) {\n' +
+  '  const sorter = new OneSweepSort({\n' +
+  '    device: device,\n' +
+  '    datatype: "u32",\n' +
+  '    direction: direction,\n' +
+  '    copyOutputToTemp: true,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const inputBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.STORAGE | \n' +
+  '           GPUBufferUsage.COPY_DST | \n' +
+  '           GPUBufferUsage.COPY_SRC,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const outputBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.STORAGE | \n' +
+  '           GPUBufferUsage.COPY_SRC | \n' +
+  '           GPUBufferUsage.COPY_DST,\n' +
+  '  });\n' +
+  '  \n' +
+  '  device.queue.writeBuffer(inputBuffer, 0, array);\n' +
+  '  \n' +
+  '  await sorter.execute({\n' +
+  '    keysInOut: inputBuffer,\n' +
+  '    keysTemp: outputBuffer,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const mappableBuffer = device.createBuffer({\n' +
+  '    size: array.byteLength,\n' +
+  '    usage: GPUBufferUsage.MAP_READ | \n' +
+  '           GPUBufferUsage.COPY_DST,\n' +
+  '  });\n' +
+  '  \n' +
+  '  const encoder = device.createCommandEncoder();\n' +
+  '  encoder.copyBufferToBuffer(\n' +
+  '    outputBuffer, 0, \n' +
+  '    mappableBuffer, 0, \n' +
+  '    array.byteLength\n' +
+  '  );\n' +
+  '  device.queue.submit([encoder.finish()]);\n' +
+  '  \n' +
+  '  await mappableBuffer.mapAsync(GPUMapMode.READ);\n' +
+  '  const result = new Uint32Array(\n' +
+  '    mappableBuffer.getMappedRange().slice()\n' +
+  '  );\n' +
+  '  mappableBuffer.unmap();\n' +
+  '  \n' +
+  '  return result;\n' +
+  '}\n' +
+  '\n' +
+  'return runSort;';
+
+codeEditor.value = defaultCode;
+
+function generateArray(size) {
+  const arr = new Uint32Array(size);
+  for (let i = 0; i < size; i++) {
+    arr[i] = Math.floor(Math.random() * 100) + 1;
+  }
+  return arr;
+}
+
+function drawBars(array) {
+  const rect = canvas.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.clearRect(0, 0, width, height);
+  
+  const barWidth = width / array.length;
+  const maxValue = Math.max(...array);
+  const padding = Math.max(2, barWidth * 0.15);
+  const bottomMargin = 40;
+  const topMargin = 20;
+  
+  ctx.strokeStyle = '#f0f0f0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = topMargin + (height - bottomMargin - topMargin) * (i / 5);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  
+  for (let i = 0; i < array.length; i++) {
+    const barHeight = (array[i] / maxValue) * (height - bottomMargin - topMargin);
+    const x = i * barWidth;
+    const y = height - barHeight - bottomMargin;
+    const actualBarWidth = barWidth - padding * 2;
+    const cornerRadius = Math.min(4, actualBarWidth / 2);
+    
+    ctx.beginPath();
+    ctx.moveTo(x + padding + cornerRadius, y);
+    ctx.lineTo(x + padding + actualBarWidth - cornerRadius, y);
+    ctx.quadraticCurveTo(x + padding + actualBarWidth, y, x + padding + actualBarWidth, y + cornerRadius);
+    ctx.lineTo(x + padding + actualBarWidth, y + barHeight);
+    ctx.lineTo(x + padding, y + barHeight);
+    ctx.lineTo(x + padding, y + cornerRadius);
+    ctx.quadraticCurveTo(x + padding, y, x + padding + cornerRadius, y);
+    ctx.closePath();
+    
+    const gradient = ctx.createLinearGradient(x, y, x, y + barHeight);
+    gradient.addColorStop(0, '#4fd1c5');
+    gradient.addColorStop(1, '#38b2ac');
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    
+    if (array.length <= 64) {
+      ctx.fillStyle = "#1d1d1f";
+      ctx.font = 'bold ' + Math.max(9, Math.min(12, barWidth * 0.4)) + 'px sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(array[i], x + barWidth / 2, y - 4);
+    }
+  }
+}
+
+async function animateTransition(beforeArray, afterArray) {
+  const steps = 30;
+  const delay = 20;
+  
+  for (let step = 0; step <= steps; step++) {
+    const progress = step / steps;
+    const interpolated = new Uint32Array(beforeArray.length);
+    
+    for (let i = 0; i < beforeArray.length; i++) {
+      interpolated[i] = Math.round(
+        beforeArray[i] + (afterArray[i] - beforeArray[i]) * progress
+      );
+    }
+    
+    drawBars(interpolated);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+}
+
+function showStatus(message, isError = false) {
+  statusDiv.textContent = message;
+  statusDiv.className = isError ? 'error' : 'success';
+  statusDiv.style.display = 'block';
+  
+  setTimeout(() => {
+    statusDiv.style.display = 'none';
+  }, 3000);
+}
+
+let currentArray = generateArray(64);
+
+newArrayBtn.addEventListener("click", () => {
+  const arraySize = parseInt(arraySizeInput.value);
+  currentArray = generateArray(arraySize);
+  drawBars(currentArray);
+  showStatus('Generated new array with ' + arraySize + ' elements');
+});
+
+runBtn.addEventListener("click", async () => {
+  const arraySize = parseInt(arraySizeInput.value);
+  const direction = directionSelect.value;
+  
+  runBtn.disabled = true;
+  newArrayBtn.disabled = true;
+  
+  try {
+    const inputArray = new Uint32Array(currentArray);
+    drawBars(inputArray);
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const userCode = codeEditor.value;
+    const runSortFunction = new Function(
+      'device', 'OneSweepSort', 'GPUBufferUsage', 'GPUMapMode', 'Uint32Array',
+      userCode
+    );
+    
+    const sortFn = runSortFunction(
+      device, OneSweepSort, GPUBufferUsage, GPUMapMode, Uint32Array
+    );
+    
+    const sortedArray = await sortFn(device, inputArray, direction);
+    currentArray = sortedArray;
+    
+    await animateTransition(inputArray, sortedArray);
+    
+    showStatus("Sort completed successfully!");
+    
+  } catch (error) {
+    console.error("Error:", error);
+    showStatus('Error: ' + error.message, true);
+  } finally {
+    runBtn.disabled = false;
+    newArrayBtn.disabled = false;
+  }
+});
+
+arraySizeInput.addEventListener("change", () => {
+  let value = parseInt(arraySizeInput.value);
+  value = Math.round(value / 16) * 16;
+  value = Math.max(16, Math.min(256, value));
+  arraySizeInput.value = value;
+});
+
+drawBars(currentArray);
+</script>
+
+<a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/sort_visualization.mjs" target="_blank" class="github-link">View Source Code on GitHub</a>
+
+<hr style="margin: 40px 0; border: none; border-top: 2px solid #e1e4e8;">
+
+<h2>3. Reduce — Parallel Reduction</h2>
+
+<div class="section-intro">
+    <strong>What is Reduce?</strong> Combines all array elements into a single value using <strong>DLDFScan</strong> with type: "reduce". Parallel tree-based reduction perfect for computing sums, finding min/max values, or any associative binary operation across large datasets.
+</div>
+
+<h3>How to Write Reduce Code</h3>
+<div class="code-block">
+import { DLDFScan } from "./scandldf.mjs";<br>
+import { BinOpAdd } from "./binop.mjs";<br>
+<br>
+const reduce = new DLDFScan({<br>
+&nbsp;&nbsp;device,<br>
+&nbsp;&nbsp;binop: new BinOpAdd({ datatype: "i32" }),<br>
+&nbsp;&nbsp;type: "reduce",<br>
+&nbsp;&nbsp;datatype: "i32"<br>
+});<br>
+<br>
+await reduce.execute({ inputBuffer, outputBuffer });
+</div>
+
+<h3>Data Types</h3>
+<p><strong>u32</strong> (unsigned 32-bit), <strong>i32</strong> (signed 32-bit), <strong>f32</strong> (32-bit float) — All types work with all operations.</p>
+
+<h3>Operations</h3>
+<p><strong>Add</strong> — Sum all array elements<br>
+<strong>Max</strong> — Find the maximum value<br>
+<strong>Min</strong> — Find the minimum value</p>
+
+<h3>Interactive Reduce Visualization</h3>
+<p>Interactive energy flow visualization showing how reduce combines many values into one through parallel pairwise 
+    operations. Watch as glowing energy particles merge in a tree-like pattern, demonstrating the log₂(N) parallel 
+    steps that make GPU reduce so efficient. The code editor on the left shows the complete function used to perform the reduction.</p>
+
+<div class="reduce-viz-container">
+    <iframe src="../examples/reduce_visualization.html" 
+            style="width: 100%; height: 700px; border: none; border-radius: 8px;"></iframe>
+</div>
+
+<a href="../examples/reduce_visualization.html" class="doc-btn" target="_blank">Open in New Tab</a>
+<a href="https://github.com/gridwise-webgpu/gridwise/blob/main/examples/reduce_visualization.mjs" target="_blank" class="github-link">View Source Code on GitHub</a>

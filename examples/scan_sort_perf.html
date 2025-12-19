@@ -8,6 +8,151 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"
     />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      h1 {
+        max-width: 1200px;
+        margin: 0 auto 20px;
+        color: #2c3e50;
+      }
+
+      p, pre {
+        max-width: 1200px;
+        margin: 0 auto 20px;
+        padding: 0 20px;
+      }
+
+      pre {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 20px !important;
+      }
+
+      hr {
+        max-width: 1200px;
+        margin: 40px auto;
+        border: none;
+        border-top: 2px solid #e0e0e0;
+      }
+
+      /* Container to prevent content overlap with floating pane */
+      #webgpu-results {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        /* Add margin-right to account for fixed pane width */
+        margin-right: 380px;
+      }
+
+      /* Style for the configuration pane when it appears */
+      #webgpu-results > div:first-child {
+        position: fixed;
+        right: 20px;
+        top: 20px;
+        width: 340px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+      }
+
+      #plot {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+
+      /* Responsive design for smaller screens */
+      @media (max-width: 1024px) {
+        #webgpu-results {
+          margin-right: auto;
+        }
+
+        #webgpu-results > div:first-child {
+          position: relative;
+          right: auto;
+          top: auto;
+          width: 100%;
+          max-height: none;
+          margin-bottom: 20px;
+        }
+      }
+
+      /* Better styling for buttons and inputs in the pane */
+      button {
+        background-color: #39bda7;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background-color 0.2s;
+      }
+
+      button:hover {
+        background-color: #2a9a87;
+      }
+
+      button:active {
+        background-color: #1f7a6a;
+      }
+
+      input, select {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        width: 100%;
+        margin-top: 4px;
+      }
+
+      label {
+        display: block;
+        margin-top: 12px;
+        font-weight: 500;
+        color: #555;
+      }
+
+      a {
+        color: #39bda7;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      code {
+        background: #f4f4f4;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+      }
+    </style>
   </head>
 
   <body>
@@ -15,13 +160,13 @@
       This example is a self-contained use of the <code>scan</code> and
       <code>sort</code> primitives, meant to plot performance. This builds on
       the simpler
-      <a href="scan_sort_pane_example.html">functionality example</a>. Set your
+      <a href="scan_pane_example.html">functionality example</a>. Set your
       parameters in the pane and click "Start" to run and plot performance data
       for a WebGPU scan/reduce/sort. The <code>inputCount</code> input specifies
       how many different input lengths to run, which will be evenly
       (logarithmically) interpolated between the specified start and end
       lengths. Otherwise, the parameters are the same as in the
-      <a href="scan_sort_pane_example.html">functionality example</a>. This
+      <a href="scan_pane_example.html">functionality example</a>. This
       example explains
       <a href="/gridwise/docs/gridwise/timing-strategy.html"
         >how to time a Gridwise primitive</a

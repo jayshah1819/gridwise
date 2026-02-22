@@ -1,5 +1,11 @@
 <aside class="docs-sidebar">
-  {%- if page.sidebar == "examples" -%}
+  {%- if page.sidebar == "demos" -%}
+  <h3>Demos</h3>
+  <ul class="docs-nav">
+    <li class="nav-section-heading">Interactive</li>
+    <li><a href="{{ "/Demos/interactive_demo.html" | relative_url }}">Galaxy Stars</a></li>
+  </ul>
+  {%- elsif page.sidebar == "examples" -%}
   <h3>Examples</h3>
   <ul class="docs-nav">
     <li class="nav-section-heading">Standalone</li>

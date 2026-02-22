@@ -1,5 +1,5 @@
 ---
-layout: home
+layout: page
 title: Examples
 permalink: /examples/
 sidebar: examples

@@ -1,14 +1,14 @@
 ---
 layout: page
-title: demos
+title: Demos
 permalink: /demos/
 sidebar: demos
 ---
 
-Interactive visualizations powered by Gridwise WebGPU primitives. demos run live in the browser and
+Interactive visualizations powered by Gridwise WebGPU primitives. Demos run live in the browser and
 require a WebGPU-capable browser (Chrome or Edge 113+, or Safari 18+).
 
-## Interactive demos
+## Interactive Demos
 
 ### Galaxy Stars
 

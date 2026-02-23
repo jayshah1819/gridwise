@@ -2,18 +2,21 @@ import { OneSweepSort } from "../onesweep.mjs";
 import { DLDFScan } from "../scandldf.mjs";
 import { BinOpAdd } from "../binop.mjs";
 
-const adapter = await navigator.gpu?.requestAdapter();
-const device = await adapter?.requestDevice({
+
+const adapter = await navigator.gpu.requestAdapter();
+if (!adapter) {
+  showError("No WebGPU-compatible GPU adapter was found on this device.");
+  throw new Error("WebGPU adapter unavailable: requestAdapter() returned null");
+}
+
+const device = await adapter.requestDevice({
   requiredLimits: {
     maxComputeWorkgroupStorageSize: 32768,
   },
   requiredFeatures: adapter.features.has("subgroups") ? ["subgroups"] : [],
 });
 
-if (!device) {
-  alert("WebGPU is not supported on this browser/device.");
-  throw new Error("WebGPU not supported");
-}
+
 
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
@@ -146,6 +149,13 @@ function render() {
 }
 
 
+function showError(msg) {
+  const el = document.getElementById("errorDisplay");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 6000);
+}
+
 async function performSort() {
   if (currentOperation) {
     clearTimeout(currentOperation);
@@ -154,60 +164,81 @@ async function performSort() {
   isOperating = true;
   
   try {
-    const sizeValues = new Uint32Array(particles.map(p => Math.floor(p.size * 1000)));
+    const sizeKeys = new Uint32Array(particles.length);
+    const indexPayload = new Uint32Array(particles.length);
+    for (let i = 0; i < particles.length; i++) {
+      sizeKeys[i] = Math.floor(particles[i].size * 1000);
+      indexPayload[i] = i;
+    }
     
     const sorter = new OneSweepSort({
       device: device,
       datatype: "u32",
+      type: "keyvalue",
       direction: "ascending",
+      inputLength: sizeKeys.length,
       copyOutputToTemp: true,
     });
     
     const inputBuffer = device.createBuffer({
-      size: sizeValues.byteLength,
+      size: sizeKeys.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
-    
     const outputBuffer = device.createBuffer({
-      size: sizeValues.byteLength,
+      size: sizeKeys.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
     });
     
-    device.queue.writeBuffer(inputBuffer, 0, sizeValues);
+    const payloadInOut = device.createBuffer({
+      size: indexPayload.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    });
+    const payloadTemp = device.createBuffer({
+      size: indexPayload.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    
+    device.queue.writeBuffer(inputBuffer, 0, sizeKeys);
+    device.queue.writeBuffer(payloadInOut, 0, indexPayload);
     
     await sorter.execute({
       keysInOut: inputBuffer,
       keysTemp: outputBuffer,
+      payloadInOut: payloadInOut,
+      payloadTemp: payloadTemp,
     });
     
+
     const mappableBuffer = device.createBuffer({
-      size: sizeValues.byteLength,
+      size: indexPayload.byteLength,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     });
     
     const encoder = device.createCommandEncoder();
-    encoder.copyBufferToBuffer(outputBuffer, 0, mappableBuffer, 0, sizeValues.byteLength);
+    encoder.copyBufferToBuffer(payloadTemp, 0, mappableBuffer, 0, indexPayload.byteLength);
     device.queue.submit([encoder.finish()]);
     
     await mappableBuffer.mapAsync(GPUMapMode.READ);
+    const sortedIndices = new Uint32Array(mappableBuffer.getMappedRange().slice());
     mappableBuffer.unmap();
-    
-    particles.sort((a, b) => a.size - b.size);
-    
+    mappableBuffer.destroy();
     const padding = 100;
     const usableWidth = canvas.width - padding * 2;
     const usableHeight = canvas.height - padding * 2;
     
-    particles.forEach((particle, i) => {
-      const progress = i / particles.length;
-      particle.targetX = padding + progress * usableWidth;
-      particle.targetY = padding + (Math.random() * 0.5 + 0.25) * usableHeight;
-      particle.vx = 0;
-      particle.vy = 0;
-    });
+    for (let rank = 0; rank < sortedIndices.length; rank++) {
+      const origIdx = sortedIndices[rank];
+      const progress = rank / particles.length;
+      particles[origIdx].targetX = padding + progress * usableWidth;
+      particles[origIdx].targetY = padding + (Math.random() * 0.5 + 0.25) * usableHeight;
+      particles[origIdx].vx = 0;
+      particles[origIdx].vy = 0;
+    }
     
     inputBuffer.destroy();
     outputBuffer.destroy();
+    payloadInOut.destroy();
+    payloadTemp.destroy();
     
     currentOperation = setTimeout(() => {
       particles.forEach((particle) => {
@@ -223,6 +254,7 @@ async function performSort() {
     
   } catch (error) {
     console.error("Sort error:", error);
+    showError("GPU sort failed: " + error.message);
     isOperating = false;
     currentOperation = null;
   }
@@ -241,7 +273,7 @@ async function performScan() {
     const scanner = new DLDFScan({
       device: device,
       binop: new BinOpAdd({ datatype: "u32" }),
-      type: "exclusive",
+      type: "inclusive",
       datatype: "u32",
     });
     
@@ -274,14 +306,15 @@ async function performScan() {
     await mappableBuffer.mapAsync(GPUMapMode.READ);
     const scannedValues = new Uint32Array(mappableBuffer.getMappedRange().slice());
     mappableBuffer.unmap();
+    mappableBuffer.destroy();
     
-    const maxValue = Math.max(...scannedValues);
-    
+    const maxValue = scannedValues[scannedValues.length - 1] || 1;
+
     particles.forEach((particle, i) => {
-      const normalized = scannedValues[i] / maxValue;
-      const waveProgress = i / particles.length;
-      particle.targetX = waveProgress * canvas.width;
-      particle.targetY = canvas.height / 2 + Math.sin(waveProgress * Math.PI * 12) * (canvas.height * 0.25) * (particle.size / 1.2);
+      const normalized = scannedValues[i] / maxValue;          
+      const wavePhase = normalized * Math.PI * 12;
+      particle.targetX = normalized * canvas.width;
+      particle.targetY = canvas.height / 2 + Math.sin(wavePhase) * (canvas.height * 0.3);
       particle.vx = 0;
       particle.vy = 0;
     });
@@ -302,7 +335,7 @@ async function performScan() {
     }, 8000);
     
   } catch (error) {
-    console.error("Scan error:", error);
+  
     isOperating = false;
     currentOperation = null;
   }
@@ -317,26 +350,65 @@ async function performReduce() {
   
   try {
     const sizeValues = new Uint32Array(particles.map(p => Math.floor(p.size * 1000)));
+    const reducer = new DLDFScan({
+      device: device,
+      binop: new BinOpAdd({ datatype: "u32" }),
+      type: "reduce",
+      datatype: "u32",
+    });
     
-    particles.sort((a, b) => a.size - b.size);
+    const inputBuffer = device.createBuffer({
+      size: sizeValues.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
     
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+    const outputBuffer = device.createBuffer({
+      size: 4, 
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    
+    device.queue.writeBuffer(inputBuffer, 0, sizeValues);
+    
+    await reducer.execute({
+      inputBuffer: inputBuffer,
+      outputBuffer: outputBuffer,
+    });
+    
+    const mappableBuffer = device.createBuffer({
+      size: 4,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+    
+    const encoder = device.createCommandEncoder();
+    encoder.copyBufferToBuffer(outputBuffer, 0, mappableBuffer, 0, 4);
+    device.queue.submit([encoder.finish()]);
+    
+    await mappableBuffer.mapAsync(GPUMapMode.READ);
+    const reduceResult = new Uint32Array(mappableBuffer.getMappedRange().slice());
+    mappableBuffer.unmap();
+    mappableBuffer.destroy();
+    
+    inputBuffer.destroy();
+    outputBuffer.destroy();
+  
+    const totalSize = reduceResult[0];
+    const meanSize = totalSize / sizeValues.length;
     const maxRadius = Math.min(canvas.width, canvas.height) * 0.45;
+    const scaledRadius = maxRadius * Math.min(meanSize / 700, 1.5);
+    
+    const centerX = canvas.width /  2;
+    const centerY = canvas.height / 2;
     
     particles.forEach((particle, i) => {
       const progress = i / particles.length;
       const angle = (i * 137.5) * (Math.PI / 180);
-      const radius = Math.sqrt(progress) * maxRadius;
+      const radius = Math.sqrt(progress) * scaledRadius;
       
       particle.targetX = centerX + Math.cos(angle) * radius;
       particle.targetY = centerY + Math.sin(angle) * radius;
       particle.vx = 0;
       particle.vy = 0;
     });
-    
-    const totalSize = sizeValues.reduce((a, b) => a + b, 0);
-    
     currentOperation = setTimeout(() => {
       particles.forEach((particle) => {
         particle.targetX = particle.originalX;
@@ -351,6 +423,7 @@ async function performReduce() {
     
   } catch (error) {
     console.error("Reduce error:", error);
+    showError("GPU reduce failed: " + error.message);
     isOperating = false;
     currentOperation = null;
   }
@@ -363,7 +436,6 @@ function formatStarCount(count) {
   return count;
 }
 
-// Event Listeners
 canvas.addEventListener("mousemove", (e) => {
   mouseX = e.clientX;
   mouseY = e.clientY;

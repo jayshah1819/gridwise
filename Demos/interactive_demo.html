@@ -169,10 +169,28 @@
         text-align: center;
         margin-top: 5px;
       }
+
+      #errorDisplay {
+        display: none;
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(180, 30, 30, 0.92);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+        z-index: 20;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <div id="errorDisplay"></div>
     
     <div id="controls">
       <div class="control-group">

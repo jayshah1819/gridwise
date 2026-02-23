@@ -3,6 +3,11 @@ import { DLDFScan } from "../scandldf.mjs";
 import { BinOpAdd } from "../binop.mjs";
 
 
+if (!navigator.gpu) {
+  showError("WebGPU is not available in this browser. Try Chrome 113+ or Edge 113+.");
+  throw new Error("WebGPU not supported: navigator.gpu is unavailable");
+}
+
 const adapter = await navigator.gpu.requestAdapter();
 if (!adapter) {
   showError("No WebGPU-compatible GPU adapter was found on this device.");
@@ -14,6 +19,16 @@ const device = await adapter.requestDevice({
     maxComputeWorkgroupStorageSize: 32768,
   },
   requiredFeatures: adapter.features.has("subgroups") ? ["subgroups"] : [],
+});
+
+if (!device) {
+  showError("WebGPU device creation failed. The GPU may be in use or unavailable.");
+  throw new Error("WebGPU device creation failed: requestDevice() returned null");
+}
+device.lost.then((info) => {
+  const msg = `WebGPU device was lost (reason: ${info.reason}): ${info.message}`;
+  console.error(msg);
+  showError("GPU device lost  please reload the page. " + info.message);
 });
 
 
@@ -335,7 +350,8 @@ async function performScan() {
     }, 8000);
     
   } catch (error) {
-  
+    console.error("Scan error:", error);
+    showError("GPU scan failed: " + error.message);
     isOperating = false;
     currentOperation = null;
   }

@@ -28,7 +28,7 @@ if (!device) {
 device.lost.then((info) => {
   const msg = `WebGPU device was lost (reason: ${info.reason}): ${info.message}`;
   console.error(msg);
-  showError("GPU device lost  please reload the page. " + info.message);
+  showError("GPU device lost — please reload the page. " + info.message);
 });
 
 

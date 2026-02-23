@@ -15,6 +15,6 @@ require a WebGPU-capable browser (Chrome or Edge 113+, or Safari 18+).
 A real-time particle simulation where GPU sort and scan primitives drive the position updates of thousands of stars. Click anywhere on the canvas to interact with the simulation.
 
 <a href="{{ "/demos/interactive_demo.html" | relative_url }}" class="doc-btn">Open Demo</a>
-<a href="https://github.com/gridwise-webgpu/gridwise/blob/main/Demos/interactive_demo.mjs" target="_blank" class="doc-btn">Source</a>
+<a href="https://github.com/gridwise-webgpu/gridwise/blob/main/demos/interactive_demo.mjs" target="_blank" class="doc-btn">Source</a>
 
 ---
